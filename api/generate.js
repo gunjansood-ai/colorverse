@@ -8,6 +8,9 @@
 // Setup: add an environment variable OPENAI_API_KEY in the Vercel project settings
 // (or `vercel env add OPENAI_API_KEY`). The key must have image generation access.
 
+// Image generation can take 20–40s; allow up to 60s so the function doesn't time out.
+export const maxDuration = 60;
+
 const STYLE_HINT = {
   cartoon: 'cute cartoon style',
   anime: 'anime / manga style',
