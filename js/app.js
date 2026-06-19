@@ -27,7 +27,7 @@
   /* ---------------- navigation tab bar ---------------- */
   function tabbar(active) {
     const tabs = [['discover','Discover','discover'],['generate','Generate','generate'],
-      ['gallery','Gallery','gallery'],['profile','Profile','profile']];
+      ['learn','Learn','learn'],['gallery','Gallery','gallery'],['profile','Profile','profile']];
     return `<nav class="tabbar">${tabs.map(([r,l,ic]) =>
       `<button class="${active===r?'active':''}" onclick="location.hash='#/${r}'">${ICONS[ic]}<span>${l}</span></button>`).join('')}</nav>`;
   }
@@ -220,6 +220,92 @@
         </div>
       </div>
     </div>`;
+  }
+
+  /* ---------------- LEARN TO DRAW ---------------- */
+  function Learn() {
+    const sel = store.learnCat || 'all';
+    const list = sel === 'all' ? LESSONS : LESSONS.filter(l => l.cat === sel);
+    return `<div class="screen">
+      ${appbar('Learn to Draw')}
+      <div class="container">
+        <div class="hero-card hero-gen" style="background:linear-gradient(135deg,#7c5cff,#b06bff)">
+          <div><h3>Learn to draw, step by step ✏️</h3><p>Watch each line appear, then trace it yourself with live guidance.</p></div>
+        </div>
+        <div class="chips" style="margin-top:18px">
+          <div class="chip-cat" onclick="CV.learnBrowse('all')">
+            <div class="bubble" style="${sel==='all'?'border-color:var(--primary);color:var(--primary)':''}">✨</div><span>All</span></div>
+          ${LESSON_CATS.map(c => `<div class="chip-cat" onclick="CV.learnBrowse('${c.id}')">
+            <div class="bubble" style="${sel===c.id?'border-color:var(--primary);color:var(--primary)':''}">${c.emoji}</div><span>${c.label}</span></div>`).join('')}
+        </div>
+        <div class="section-head"><h3>${sel==='all'?'All Lessons':(LESSON_CATS.find(c=>c.id===sel)||{}).label} <span class="badge" style="margin-left:6px">${list.length}</span></h3></div>
+        <div class="cards grid-3">
+          ${list.map(l => `<div class="tile" onclick="CV.learn('${l.id}')">
+            <div class="thumb">${lessonThumb(l)}<span class="lvl-badge">${l.level[0].toUpperCase()}</span>
+              <span class="play-badge">${ICONS.play}</span></div>
+            <div class="cap">${l.title} · ${l.steps.length} steps</div></div>`).join('')}
+        </div>
+      </div>
+      ${tabbar('learn')}
+    </div>`;
+  }
+
+  let COACH = null, currentLesson = null;
+  function openStudio(lessonId) {
+    const lesson = LESSONS.find(l => l.id === lessonId); if (!lesson) return;
+    currentLesson = lesson;
+    const el = document.createElement('div'); el.className = 'studio mode-watch'; el.id = 'studio';
+    el.innerHTML = studioHTML(lesson);
+    document.body.appendChild(el);
+    COACH = new DrawCoach(el.querySelector('#coachStage'));
+    COACH.onStep = (i, total, label) => {
+      const lab = el.querySelector('#stLabel');
+      if (lab) lab.innerHTML = (i >= 0 ? `<b>Step ${i + 1}/${total}</b> · ` : '') + label;
+      el.querySelectorAll('.dot').forEach((d, k) => d.classList.toggle('on', k <= i));
+    };
+    COACH.onPlay = (p) => { const b = el.querySelector('#stPlay'); if (b) b.innerHTML = p ? ICONS.pause : ICONS.play; };
+    COACH.onMode = (m) => {
+      el.classList.toggle('mode-trace', m === 'trace');
+      el.classList.toggle('mode-watch', m === 'watch');
+      el.querySelectorAll('.st-seg button').forEach(b => b.classList.toggle('active', b.dataset.m === m));
+    };
+    COACH.onScore = (pct) => { const s = el.querySelector('#stScore'); if (s) s.textContent = pct == null ? 'Trace the lines' : 'Accuracy ' + pct + '%'; };
+    COACH.loadLesson(lesson);
+    setTimeout(() => COACH.play(), 450);
+  }
+  function closeStudio() { const e = document.getElementById('studio'); if (e) e.remove(); COACH = null; }
+
+  function studioHTML(lesson) {
+    return `
+      <div class="st-top">
+        <button class="icon-btn" onclick="CV.closeStudio()" title="Close">${ICONS.close}</button>
+        <div class="title" style="font-family:var(--font-head);font-weight:700">${lesson.title}</div>
+        <div class="sp"></div>
+        <div class="st-seg seg">
+          <button data-m="watch" class="active" onclick="CV.coachMode('watch')">👁 Watch</button>
+          <button data-m="trace" onclick="CV.coachMode('trace')">✍️ Trace</button>
+        </div>
+        <button class="btn btn-success btn-sm" style="margin-left:8px" onclick="CV.colorLesson('${lesson.id}')">Color it</button>
+      </div>
+      <div class="st-stage-wrap"><div id="coachStage"></div></div>
+      <div class="st-label" id="stLabel">Press play to watch it drawn</div>
+      <div class="st-dots">${lesson.steps.map(() => `<span class="dot"></span>`).join('')}</div>
+      <div class="st-controls watch-only">
+        <button class="icon-btn" onclick="CV.coach('replay')" title="Replay step">${ICONS.replay}</button>
+        <button class="icon-btn" onclick="CV.coach('prev')" title="Previous">${ICONS.prev}</button>
+        <button class="play-btn" id="stPlay" onclick="CV.coach('play')">${ICONS.play}</button>
+        <button class="icon-btn" onclick="CV.coach('next')" title="Next">${ICONS.next}</button>
+      </div>
+      <div class="st-controls trace-only">
+        <span class="badge" id="stScore">Trace the lines</span>
+        <button class="btn btn-ghost btn-sm" onclick="CV.coach('clear')">🧽 Clear</button>
+        <span style="font-size:12px;color:var(--ink-3)">Green = on the line · Red = follow the arrow</span>
+      </div>`;
+  }
+  function lessonColorSVG(lesson) {
+    const d = lesson.steps.flatMap(s => s.strokes.filter(k => !k.c).map(k => k.d)).join(' ');
+    return `<svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg"><rect width="400" height="400" fill="#fff"/>
+      <path d="${d}" fill="none" stroke="#1b1b1b" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   }
 
   /* ---------------- EDITOR ---------------- */
@@ -569,6 +655,24 @@
     generate() { runGenerate(); },
     import() { importImage(); },
     browse(cat) { store.browseCat = cat; store.q = ''; render(); },
+    learnBrowse(cat) { store.learnCat = cat; render(); },
+    learn(id) { openStudio(id); },
+    closeStudio() { closeStudio(); },
+    coachMode(m) { if (COACH) COACH.setMode(m); },
+    coach(action) {
+      if (!COACH) return;
+      if (action === 'play') COACH.togglePlay();
+      else if (action === 'next') COACH.nextStep();
+      else if (action === 'prev') COACH.prevStep();
+      else if (action === 'replay') COACH.replayStep();
+      else if (action === 'clear') COACH.clearTrace();
+    },
+    colorLesson(id) {
+      const l = LESSONS.find(x => x.id === id); if (!l) return;
+      closeStudio();
+      currentTitle = l.title;
+      openEditorWith({ svg: lessonColorSVG(l) });
+    },
     // live filter the visible tiles by caption (no re-render, keeps input focus)
     search(q) {
       store.q = q;
@@ -654,6 +758,7 @@
     if (h.startsWith('#/discover')) html = Discover();
     else if (h.startsWith('#/generate')) html = Generate();
     else if (h.startsWith('#/gallery')) { store.gallery = loadGallery(); html = Gallery(); }
+    else if (h.startsWith('#/learn')) html = Learn();
     else if (h.startsWith('#/profile')) html = Profile();
     else if (h.startsWith('#/kids')) html = Kids();
     else if (h.startsWith('#/p/')) { html = Discover(); }
