@@ -17,6 +17,7 @@ const ICONS = {
   fill:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3 4 10l7 7 7-7-7-7Z"/><path d="M4 10h14"/><path d="M20 16c0 1.5-2 3-2 3"/></svg>`,
   picker:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6 3 3"/><path d="M18 3 21 6 9 18l-4 1 1-4L18 3Z"/></svg>`,
   zoom:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3M8 11h6M11 8v6"/></svg>`,
+  zoomOut:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3M8 11h6"/></svg>`,
   magic:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 19 9-9"/><path d="M14 6h.01M18 10h.01M19 4h.01M9 4h.01"/><path d="m16 4 1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2Z"/></svg>`,
   download:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 21h14"/></svg>`,
   share:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5 8.6 10.5"/></svg>`,
@@ -170,8 +171,8 @@ const SAMPLE_PAGES = [
 ];
 
 const KIDS_CATS = [
-  {id:'animals',label:'Animals',emoji:'🐼',pages:['cat','bear','fox']},
-  {id:'dinosaurs',label:'Dinosaurs',emoji:'🦕',pages:['dino','dino','dino']},
-  {id:'unicorns',label:'Unicorns',emoji:'🦄',pages:['unicorn','flower','butterfly']},
-  {id:'vehicles',label:'Vehicles',emoji:'🚗',pages:['rocket','house','rocket']},
+  {id:'animals',label:'Animals',emoji:'🐼',pages:['lion','panda','rabbit','turtle','penguin','cat-yarn']},
+  {id:'dinosaurs',label:'Dinosaurs',emoji:'🦕',pages:['trex','stegosaurus','brachiosaurus']},
+  {id:'unicorns',label:'Unicorns',emoji:'🦄',pages:['unicorn','fairy','mermaid','butterfly-garden']},
+  {id:'vehicles',label:'Vehicles',emoji:'🚗',pages:['car','rocket','train','airplane','fire-truck','tractor']},
 ];

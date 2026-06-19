@@ -114,6 +114,9 @@ img{max-width:100%;display:block}
 .tile .heart{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.85);
   display:grid;place-items:center;color:#ff5b7f}
 .tile .cap{padding:8px 10px;font-size:13px;font-weight:600;color:var(--ink)}
+.tile .thumb img{background:#fff}
+.lvl-badge{position:absolute;top:8px;left:8px;width:22px;height:22px;border-radius:50%;background:var(--primary);
+  color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;box-shadow:var(--shadow)}
 
 .seg{display:inline-flex;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:4px;gap:4px}
 .seg button{padding:8px 16px;border-radius:11px;font-weight:600;font-size:14px;color:var(--ink-2)}

@@ -165,12 +165,10 @@
       s.addEventListener('pointerup', end);
       s.addEventListener('pointerleave', end);
 
-      // wheel zoom
+      // wheel / trackpad zoom — always active over the canvas
       this.stage.parentElement.addEventListener('wheel', (e) => {
-        if (!e.ctrlKey && this.tool !== 'zoom') return;
         e.preventDefault();
-        this.scale = Math.min(5, Math.max(1, this.scale * (e.deltaY < 0 ? 1.1 : 0.9)));
-        this._applyTransform();
+        this.zoomBy(e.deltaY < 0 ? 1.12 : 1 / 1.12);
       }, { passive: false });
     }
 
@@ -316,12 +314,14 @@
     setActiveLayer(id) { this.activeLayer = id; }
 
     /* ---------- Zoom ---------- */
-    cycleZoom() {
-      this.scale = this.scale >= 2.4 ? 1 : this.scale + 0.7;
-      if (this.scale === 1) { this.tx = 0; this.ty = 0; }
+    zoomBy(factor) {
+      this.scale = Math.min(6, Math.max(1, this.scale * factor));
+      if (this.scale <= 1.001) { this.scale = 1; this.tx = 0; this.ty = 0; }
       this._applyTransform();
+      if (this.onZoom) this.onZoom(this.scale);
       return this.scale;
     }
+    cycleZoom() { return this.zoomBy(this.scale >= 2.4 ? 1 / this.scale : 1.5); }
 
     /* ---------- Import image → line art ---------- */
     async importImage(fileOrUrl, mode = 'coloring') {

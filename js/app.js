@@ -9,6 +9,10 @@
 
   /* ---------------- utilities ---------------- */
   function svgThumb(id) { return LINEART[id] || LINEART.cat; }
+  function kidsThumb(id) {
+    return (typeof CATALOG !== 'undefined' && CATALOG.find(x => x.id === id))
+      ? `<img src="${catImg(id)}" loading="lazy" alt=""/>` : svgThumb(id);
+  }
   function toast(msg) {
     const host = document.getElementById('toast-host');
     const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
@@ -68,15 +72,16 @@
 
   /* ---------------- DISCOVER ---------------- */
   function Discover() {
-    const featured = ['cat','house','mandala'];
-    const recent = SAMPLE_PAGES.slice(0, 6);
+    const sel = store.browseCat || 'all';
+    const featured = CATALOG.slice(0, 6);
+    const browse = sel === 'all' ? CATALOG : CATALOG.filter(p => p.cat === sel);
     return `<div class="screen">
       ${appbar('Home / Discover')}
       <div class="container">
-        <div class="search">${ICONS.search}<input placeholder="Search anything…" oninput="CV.search(this.value)"/></div>
+        <div class="search">${ICONS.search}<input value="${store.q||''}" placeholder="Search ${CATALOG.length} coloring pages…" oninput="CV.search(this.value)"/></div>
         <div class="cards grid-2" style="margin-top:16px">
           <div class="hero-card hero-gen" onclick="location.hash='#/generate'">
-            <div><h3>AI Generate</h3><p>Create coloring pages with a prompt</p></div>
+            <div><h3>AI Generate</h3><p>Create any coloring page with a prompt</p></div>
             <span class="emoji">✨</span>
           </div>
           <div class="hero-card hero-import" onclick="CV.import()">
@@ -85,24 +90,27 @@
           </div>
         </div>
         <div class="chips" style="margin-top:18px">
-          ${CATEGORIES.map(c => `<div class="chip-cat" onclick="CV.search('${c.label}')">
-            <div class="bubble">${c.emoji}</div><span>${c.label}</span></div>`).join('')}
+          <div class="chip-cat" onclick="CV.browse('all')">
+            <div class="bubble" style="${sel==='all'?'border-color:var(--primary);color:var(--primary)':''}">✨</div><span>All</span></div>
+          ${CAT_META.map(c => `<div class="chip-cat" onclick="CV.browse('${c.id}')">
+            <div class="bubble" style="${sel===c.id?'border-color:var(--primary);color:var(--primary)':''}">${c.emoji}</div><span>${c.label}</span></div>`).join('')}
         </div>
-        <div class="section-head"><h3>Featured For You</h3><a class="see-all" onclick="location.hash='#/gallery'">See All</a></div>
-        <div class="cards grid-3">
-          ${featured.map(id => tile(id)).join('')}
-        </div>
-        <div class="section-head"><h3>Popular Pages</h3></div>
-        <div class="cards grid-3">${recent.map(p => tile(p.id, p.title)).join('')}</div>
+        <div class="section-head"><h3>Featured For You</h3><a class="see-all" onclick="CV.browse('all')">See All</a></div>
+        <div class="cards grid-3">${featured.map(p => tile(p.id, p.title, p.level)).join('')}</div>
+        <div class="section-head"><h3>${sel==='all' ? 'Browse All Pages' : (CAT_META.find(c=>c.id===sel)||{}).label} <span class="badge" style="margin-left:6px">${browse.length}</span></h3></div>
+        <div class="cards grid-3">${browse.map(p => tile(p.id, p.title, p.level)).join('')}</div>
       </div>
       ${tabbar('discover')}
     </div>`;
   }
-  function tile(id, title) {
-    const p = SAMPLE_PAGES.find(x => x.id === id);
+  // tile: catalog items render their AI image; built-in svg pages render the svg
+  function tile(id, title, level) {
+    const c = CATALOG.find(x => x.id === id);
+    const thumb = c ? `<img src="${catImg(id)}" loading="lazy" alt="${title||''}"/>` : svgThumb(id);
+    const badge = level ? `<span class="lvl-badge">${level[0].toUpperCase()}</span>` : '';
     return `<div class="tile" onclick="CV.open('${id}')">
-      <div class="thumb">${svgThumb(id)}<div class="heart">${ICONS.heart}</div></div>
-      <div class="cap">${title || (p && p.title) || 'Coloring Page'}</div>
+      <div class="thumb">${thumb}<div class="heart">${ICONS.heart}</div>${badge}</div>
+      <div class="cap">${title || (c && c.title) || 'Coloring Page'}</div>
     </div>`;
   }
 
@@ -113,7 +121,7 @@
       ${appbar('Generate', { back: true })}
       <div class="container" style="max-width:640px">
         <div class="field-label">Describe what you want to create</div>
-        <textarea class="prompt-box" id="genPrompt" placeholder="e.g. Cute baby Hanuman eating mangoes">${g.prompt}</textarea>
+        <textarea class="prompt-box" id="genPrompt" oninput="CV.savePrompt(this.value)" placeholder="e.g. Cute baby Hanuman eating mangoes">${g.prompt}</textarea>
         <div class="field-label">Choose Style</div>
         <div class="style-row">
           ${STYLES.map(s => `<div class="style-card ${g.style===s.id?'active':''}" onclick="CV.setStyle('${s.id}')">
@@ -151,8 +159,8 @@
             <p>No saved artwork yet.<br/>Color a page and tap Save.</p>
             <button class="btn btn-primary" style="margin-top:10px" onclick="location.hash='#/discover'">Browse pages</button>
           </div>`}
-        <div class="section-head"><h3>Templates</h3></div>
-        <div class="cards grid-3">${SAMPLE_PAGES.slice(0,6).map(p => tile(p.id,p.title)).join('')}</div>
+        <div class="section-head"><h3>Template Library</h3><span class="badge">${CATALOG.length} pages</span></div>
+        <div class="cards grid-3">${CATALOG.map(p => tile(p.id,p.title,p.level)).join('')}</div>
       </div>
       ${tabbar('gallery')}
     </div>`;
@@ -208,7 +216,7 @@
         <div class="field-label" style="text-align:center">Pick a page</div>
         <div class="cards grid-4" id="kidsPages">
           ${KIDS_CATS[0].pages.map(id => `<div class="tile" onclick="CV.open('${id}', true)">
-            <div class="thumb">${svgThumb(id)}</div></div>`).join('')}
+            <div class="thumb">${kidsThumb(id)}</div></div>`).join('')}
         </div>
       </div>
     </div>`;
@@ -218,7 +226,8 @@
   let ED = null, currentTitle = 'Untitled', kidsFlag = false;
   function openEditor(pageId, kids, savedIndex) {
     kidsFlag = !!kids;
-    const p = SAMPLE_PAGES.find(x => x.id === pageId);
+    const cItem = CATALOG.find(x => x.id === pageId);
+    const p = cItem || SAMPLE_PAGES.find(x => x.id === pageId);
     currentTitle = p ? p.title : (pageId ? 'Coloring Page' : 'Imported');
     const el = document.createElement('div');
     el.className = 'editor'; el.id = 'editor';
@@ -232,10 +241,12 @@
       el.querySelector('#btnRedo').disabled = !r;
     };
     ED.onColorPick = (c) => { ED.color = c; syncSwatches(el, c); };
+    ED.onZoom = (s) => { const lvl = document.getElementById('zoomLvl'); if (lvl) lvl.textContent = Math.round(s * 100) + '%'; };
     ED.color = PALETTE[9];
 
     if (savedIndex != null) loadSavedInto(savedIndex);
-    else if (pageId && LINEART[pageId]) ED.loadLineArt(LINEART[pageId]);
+    else if (cItem) ED.loadImageAsLineArt(catImg(pageId));        // AI catalog page
+    else if (pageId && LINEART[pageId]) ED.loadLineArt(LINEART[pageId]); // built-in svg
     else ED.loadLineArt(LINEART.cat);
 
     wireEditor(el, kids);
@@ -260,8 +271,10 @@
         <button class="icon-btn" id="btnRedo" disabled onclick="CV.ed('redo')">${ICONS.redo}</button>
         <div class="title" style="font-family:var(--font-head);font-weight:700">${currentTitle}</div>
         <div class="sp"></div>
-        <button class="icon-btn" onclick="CV.ed('zoom')" title="Zoom">${ICONS.zoom}</button>
-        <button class="btn btn-primary btn-sm" onclick="CV.save()">${ICONS.download}<span style="margin-left:4px">Save</span></button>
+        <button class="icon-btn" onclick="CV.zoom(-1)" title="Zoom out">${ICONS.zoomOut}</button>
+        <span id="zoomLvl" style="font-size:12px;font-weight:600;color:var(--ink-3);min-width:42px;text-align:center">100%</span>
+        <button class="icon-btn" onclick="CV.zoom(1)" title="Zoom in">${ICONS.zoom}</button>
+        <button class="btn btn-primary btn-sm" onclick="CV.save()" style="margin-left:6px">${ICONS.download}<span style="margin-left:4px">Save</span></button>
         <button class="btn btn-success btn-sm" onclick="CV.exportModal()" style="margin-left:6px">Export</button>
       </div>
       <div class="ed-body">
@@ -405,6 +418,7 @@
     ED = new ColorVerseEditor(el.querySelector('#stage'));
     ED.onHistory = (u, r) => { el.querySelector('#btnUndo').disabled = !u; el.querySelector('#btnRedo').disabled = !r; };
     ED.onColorPick = (c) => { ED.color = c; syncSwatches(el, c); };
+    ED.onZoom = (s) => { const lvl = document.getElementById('zoomLvl'); if (lvl) lvl.textContent = Math.round(s * 100) + '%'; };
     ED.color = PALETTE[9];
     if (image) ED.loadImageAsLineArt(image);
     else ED.loadLineArt(svg);
@@ -425,6 +439,7 @@
     ED = new ColorVerseEditor(el.querySelector('#stage'));
     ED.onHistory = (u, r) => { el.querySelector('#btnUndo').disabled = !u; el.querySelector('#btnRedo').disabled = !r; };
     ED.onColorPick = (c) => { ED.color = c; syncSwatches(el, c); };
+    ED.onZoom = (s) => { const lvl = document.getElementById('zoomLvl'); if (lvl) lvl.textContent = Math.round(s * 100) + '%'; };
     ED.color = PALETTE[9];
     ED.loadLineArt(svg);
   }
@@ -471,6 +486,8 @@
       ED = new ColorVerseEditor(el.querySelector('#stage'));
       ED.onHistory = (u, r) => { el.querySelector('#btnUndo').disabled = !u; el.querySelector('#btnRedo').disabled = !r; };
       ED.onColorPick = (c) => { ED.color = c; syncSwatches(el, c); };
+      ED.onZoom = (s) => { const lvl = document.getElementById('zoomLvl'); if (lvl) lvl.textContent = Math.round(s * 100) + '%'; };
+    ED.onZoom = (s) => { const lvl = document.getElementById('zoomLvl'); if (lvl) lvl.textContent = Math.round(s * 100) + '%'; };
       ED.color = PALETTE[9];
       ED.importImage(url, 'coloring').then(() => toast('Converted to coloring page'));
     };
@@ -532,17 +549,42 @@
       if (ED) ED.autoColor(AI_PALETTES[k]);
       toast('Suggested: ' + k + ' palette');
     },
-    setStyle(s) { store.gen.style = s; render(); },
-    setCx(c) { store.gen.complexity = c; render(); },
+    // Update style/complexity WITHOUT a full re-render, so the typed prompt is preserved.
+    setStyle(s) {
+      const t = document.getElementById('genPrompt'); if (t) store.gen.prompt = t.value;
+      store.gen.style = s;
+      document.querySelectorAll('.style-card').forEach((el, i) => el.classList.toggle('active', STYLES[i] && STYLES[i].id === s));
+    },
+    setCx(c) {
+      const t = document.getElementById('genPrompt'); if (t) store.gen.prompt = t.value;
+      store.gen.complexity = c;
+      document.querySelectorAll('.cx-card').forEach((el, i) => el.classList.toggle('active', COMPLEXITY[i] && COMPLEXITY[i].id === c));
+    },
+    zoom(dir) {
+      if (!ED) return;
+      const s = ED.zoomBy(dir > 0 ? 1.35 : 1 / 1.35);
+      const lvl = document.getElementById('zoomLvl'); if (lvl) lvl.textContent = Math.round(s * 100) + '%';
+    },
+    savePrompt(v) { store.gen.prompt = v; },
     generate() { runGenerate(); },
     import() { importImage(); },
-    search(q) { if (q && q.length > 1) toast('Searching: ' + q); },
+    browse(cat) { store.browseCat = cat; store.q = ''; render(); },
+    // live filter the visible tiles by caption (no re-render, keeps input focus)
+    search(q) {
+      store.q = q;
+      const t = (q || '').trim().toLowerCase();
+      document.querySelectorAll('.tile').forEach(el => {
+        const cap = (el.querySelector('.cap')?.textContent || '').toLowerCase();
+        el.style.display = (!t || cap.includes(t)) ? '' : 'none';
+      });
+    },
     premium() { go('#/profile'); setTimeout(() => toast('Unlock Premium for unlimited AI'), 200); },
     upgrade(plan) { store.user.tier = plan; render(); toast('Upgraded to ' + plan + ' 🎉'); },
     kidsCat(id) {
       const c = KIDS_CATS.find(x => x.id === id);
+      document.querySelectorAll('.kids .cat').forEach((el, i) => el.classList.toggle('active', KIDS_CATS[i] && KIDS_CATS[i].id === id));
       document.getElementById('kidsPages').innerHTML = c.pages.map(pid =>
-        `<div class="tile" onclick="CV.open('${pid}', true)"><div class="thumb">${(LINEART[pid]||LINEART.cat)}</div></div>`).join('');
+        `<div class="tile" onclick="CV.open('${pid}', true)"><div class="thumb">${kidsThumb(pid)}</div></div>`).join('');
     },
     save() {
       if (!ED) return;
