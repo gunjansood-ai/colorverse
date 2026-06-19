@@ -368,20 +368,46 @@
     if (!prompt) { toast('Describe what you want to create'); return; }
     const overlay = genOverlay(prompt);
     document.body.appendChild(overlay);
-    let svg;
+
+    let image = null, svg = null, usedAI = false;
     try {
-      // try serverless AI endpoint first; fall back to local procedural generator
       const r = await fetch('/api/generate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, style: store.gen.style, complexity: store.gen.complexity }),
       });
-      if (r.ok) { const j = await r.json(); svg = j.svg; }
-    } catch (e) {}
-    if (!svg) svg = proceduralLineArt(prompt, store.gen.complexity);
-    await new Promise(r => setTimeout(r, 700));
-    overlay.remove();
+      if (r.ok) {
+        const j = await r.json();
+        if (j.imageB64) { image = j.imageB64; usedAI = true; }
+        else if (j.imageUrl) { image = j.imageUrl; usedAI = true; }
+        else if (j.svg) { svg = j.svg; usedAI = true; }
+        else if (j.error) { toast('AI error: ' + j.error); }
+      } else {
+        toast('Generator returned ' + r.status);
+      }
+    } catch (e) { /* network — fall back below */ }
+
+    // Fall back to the built-in template generator when no AI image is available.
+    if (!image && !svg) {
+      svg = proceduralLineArt(prompt, store.gen.complexity);
+      toast('No AI key set — used a sample template');
+    }
+
     currentTitle = prompt.length > 24 ? prompt.slice(0, 24) + '…' : prompt;
-    openEditorWithSvg(svg);
+    openEditorWith({ image, svg });
+    if (usedAI && image) toast('Generated with AI ✨');
+    overlay.remove();
+  }
+
+  // Open the editor and load either an AI raster image (as line art) or an SVG.
+  function openEditorWith({ image, svg }) {
+    const el = document.createElement('div'); el.className = 'editor'; el.id = 'editor';
+    el.innerHTML = editorHTML(false); document.body.appendChild(el);
+    ED = new ColorVerseEditor(el.querySelector('#stage'));
+    ED.onHistory = (u, r) => { el.querySelector('#btnUndo').disabled = !u; el.querySelector('#btnRedo').disabled = !r; };
+    ED.onColorPick = (c) => { ED.color = c; syncSwatches(el, c); };
+    ED.color = PALETTE[9];
+    if (image) ED.loadImageAsLineArt(image);
+    else ED.loadLineArt(svg);
   }
   function genOverlay(prompt) {
     const o = document.createElement('div'); o.className = 'modal-bg';

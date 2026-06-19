@@ -1,12 +1,25 @@
 // ColorVerse — AI coloring-page generation endpoint (Vercel serverless function)
 //
-// By default this returns { fallback: true } and the client renders a clean
-// procedural line-art page locally, so the app works with zero configuration.
+// Generates clean black-and-white coloring-book line art from a text prompt using
+// OpenAI's image model (gpt-image-1). If no OPENAI_API_KEY is configured, it returns
+// { fallback: true } and the client renders a built-in sample template instead, so
+// the app always works.
 //
-// To enable real AI image→line-art generation, set an env var in Vercel
-// (REPLICATE_API_TOKEN or OPENAI_API_KEY) and implement the call below. The
-// model should return black line art on white; convert to an SVG/PNG and
-// return it as { svg } or { imageUrl }.
+// Setup: add an environment variable OPENAI_API_KEY in the Vercel project settings
+// (or `vercel env add OPENAI_API_KEY`). The key must have image generation access.
+
+const STYLE_HINT = {
+  cartoon: 'cute cartoon style',
+  anime: 'anime / manga style',
+  lineart: 'clean minimal line art',
+  sketch: 'hand-drawn pencil sketch style',
+  realistic: 'realistic detailed illustration style',
+};
+const COMPLEXITY_HINT = {
+  beginner: 'simple bold outlines, large open areas, minimal detail, great for young kids',
+  intermediate: 'moderate detail with medium-sized regions',
+  advanced: 'intricate, highly detailed professional illustration',
+};
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -14,33 +27,53 @@ export default async function handler(req, res) {
     return;
   }
   const { prompt = '', style = 'cartoon', complexity = 'beginner' } = req.body || {};
+  const apiKey = process.env.OPENAI_API_KEY;
 
-  const hasModel = !!(process.env.REPLICATE_API_TOKEN || process.env.OPENAI_API_KEY);
-  if (!hasModel) {
-    // No model configured → tell the client to use its local generator.
+  if (!apiKey) {
     res.status(200).json({ fallback: true, prompt, style, complexity });
     return;
   }
+  if (!prompt.trim()) {
+    res.status(400).json({ error: 'Empty prompt' });
+    return;
+  }
+
+  const fullPrompt =
+    `Black and white coloring book page of: ${prompt}. ` +
+    `${STYLE_HINT[style] || STYLE_HINT.cartoon}. ` +
+    `${COMPLEXITY_HINT[complexity] || COMPLEXITY_HINT.beginner}. ` +
+    `Bold clean black outlines only, no shading, no grey, no color, no fill, ` +
+    `pure white background, thick continuous contour lines forming closed regions ` +
+    `suitable for coloring. Centered subject, printable.`;
 
   try {
-    // ---- Example wiring (uncomment & adapt once a key is set) ----------------
-    // const r = await fetch('https://api.replicate.com/v1/predictions', {
-    //   method: 'POST',
-    //   headers: {
-    //     Authorization: `Token ${process.env.REPLICATE_API_TOKEN}`,
-    //     'Content-Type': 'application/json',
-    //   },
-    //   body: JSON.stringify({
-    //     version: '<a line-art / coloring-book model version>',
-    //     input: {
-    //       prompt: `${prompt}, clean black and white coloring book line art, ${style}, ${complexity} detail, white background`,
-    //     },
-    //   }),
-    // });
-    // const data = await r.json();
-    // return res.status(200).json({ imageUrl: data.output });
-    // -------------------------------------------------------------------------
-    res.status(200).json({ fallback: true, prompt, style, complexity });
+    const r = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-image-1',
+        prompt: fullPrompt,
+        size: '1024x1024',
+        n: 1,
+        background: 'opaque',
+      }),
+    });
+
+    const data = await r.json();
+    if (!r.ok) {
+      const msg = data?.error?.message || `OpenAI returned ${r.status}`;
+      res.status(200).json({ fallback: true, error: msg });
+      return;
+    }
+    const b64 = data?.data?.[0]?.b64_json;
+    if (!b64) {
+      res.status(200).json({ fallback: true, error: 'No image returned' });
+      return;
+    }
+    res.status(200).json({ imageB64: `data:image/png;base64,${b64}` });
   } catch (err) {
     res.status(200).json({ fallback: true, error: String(err) });
   }

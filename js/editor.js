@@ -342,6 +342,34 @@
       this._recordFrame();
     }
 
+    /* Load an AI-generated line-art image directly as the line layer.
+       The model returns near-black outlines on white; we threshold so dark
+       pixels become crisp opaque lines and everything light becomes
+       transparent (so colors show through and flood fill has clean barriers). */
+    async loadImageAsLineArt(src) {
+      const img = await loadImg(src);
+      const off = document.createElement('canvas'); off.width = SIZE; off.height = SIZE;
+      const o = off.getContext('2d');
+      o.fillStyle = '#fff'; o.fillRect(0, 0, SIZE, SIZE);
+      const ratio = Math.min(SIZE / img.width, SIZE / img.height);
+      const w = img.width * ratio, h = img.height * ratio;
+      o.drawImage(img, (SIZE - w) / 2, (SIZE - h) / 2, w, h);
+      const d = o.getImageData(0, 0, SIZE, SIZE);
+      const a = d.data;
+      for (let i = 0; i < a.length; i += 4) {
+        const lum = 0.299 * a[i] + 0.587 * a[i + 1] + 0.114 * a[i + 2];
+        if (lum < 110) { a[i] = a[i + 1] = a[i + 2] = 20; a[i + 3] = 255; } // line
+        else { a[i + 3] = 0; }                                            // paper → clear
+      }
+      const ctx = this.lineCanvas.getContext('2d');
+      ctx.clearRect(0, 0, SIZE, SIZE);
+      ctx.putImageData(d, 0, 0);
+      this._snapshotBarrier();
+      this.clearColors();
+      this._pushUndo(true);
+      this._recordFrame();
+    }
+
     /* ---------- Auto color (AI assist) ---------- */
     autoColor(palette) {
       // flood-fill enclosed regions with a themed palette by scanning a grid
