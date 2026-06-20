@@ -216,14 +216,15 @@
         const r = this.userC.getBoundingClientRect();
         return { x: (e.clientX - r.left) / r.width * LV, y: (e.clientY - r.top) / r.height * LV };
       };
+      const canDraw = () => this.mode === 'trace' || this.mode === 'parallel';
       const down = (e) => {
-        if (this.mode !== 'trace') return;
+        if (!canDraw()) return;
         this.userC.setPointerCapture(e.pointerId);
         this._drawing = true; this._last = ptLV(e);
         this._plot(this._last);
       };
       const move = (e) => {
-        if (!this._drawing || this.mode !== 'trace') return;
+        if (!this._drawing || !canDraw()) return;
         const p = ptLV(e);
         this._segment(this._last, p);
         this._cursor(p);
