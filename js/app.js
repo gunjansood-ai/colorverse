@@ -265,11 +265,15 @@
     };
     COACH.onPlay = (p) => { const b = el.querySelector('#stPlay'); if (b) b.innerHTML = p ? ICONS.pause : ICONS.play; };
     COACH.onMode = (m) => {
-      el.classList.toggle('mode-trace', m === 'trace');
-      el.classList.toggle('mode-watch', m === 'watch');
+      el.classList.remove('mode-watch', 'mode-trace', 'mode-parallel');
+      el.classList.add('mode-' + m);
       el.querySelectorAll('.st-seg button').forEach(b => b.classList.toggle('active', b.dataset.m === m));
     };
-    COACH.onScore = (pct) => { const s = el.querySelector('#stScore'); if (s) s.textContent = pct == null ? 'Trace the lines' : 'Accuracy ' + pct + '%'; };
+    COACH.onScore = (pct) => {
+      const txt = pct == null ? null : 'Accuracy ' + pct + '%';
+      const s = el.querySelector('#stScore'); if (s) s.textContent = txt || 'Trace the lines';
+      const sp = el.querySelector('#stScoreP'); if (sp) sp.textContent = txt || 'Watch left, draw right';
+    };
     COACH.loadLesson(lesson);
     setTimeout(() => COACH.play(), 450);
   }
@@ -283,6 +287,7 @@
         <div class="sp"></div>
         <div class="st-seg seg">
           <button data-m="watch" class="active" onclick="CV.coachMode('watch')">👁 Watch</button>
+          <button data-m="parallel" onclick="CV.coachMode('parallel')">🪞 Side by Side</button>
           <button data-m="trace" onclick="CV.coachMode('trace')">✍️ Trace</button>
         </div>
         <button class="btn btn-success btn-sm" style="margin-left:8px" onclick="CV.colorLesson('${lesson.id}')">Color it</button>
@@ -300,6 +305,11 @@
         <span class="badge" id="stScore">Trace the lines</span>
         <button class="btn btn-ghost btn-sm" onclick="CV.coach('clear')">🧽 Clear</button>
         <span style="font-size:12px;color:var(--ink-3)">Green = on the line · Red = follow the arrow</span>
+      </div>
+      <div class="st-controls parallel-only">
+        <button class="icon-btn" onclick="CV.coach('replay-all')" title="Watch again">${ICONS.replay}</button>
+        <span class="badge" id="stScoreP">Watch left, draw right</span>
+        <button class="btn btn-ghost btn-sm" onclick="CV.coach('clear')">🧽 Clear</button>
       </div>`;
   }
   function lessonColorSVG(lesson) {
@@ -665,6 +675,7 @@
       else if (action === 'next') COACH.nextStep();
       else if (action === 'prev') COACH.prevStep();
       else if (action === 'replay') COACH.replayStep();
+      else if (action === 'replay-all') COACH.replayGuide();
       else if (action === 'clear') COACH.clearTrace();
     },
     colorLesson(id) {

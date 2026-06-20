@@ -22,17 +22,20 @@
 
     _build() {
       this.el.innerHTML = '';
-      this.el.classList.add('coach-stage');
+      this.el.classList.add('coach-root', 'mode-watch');
+      // left/guide panel (animated SVG)
+      this.svgBox = document.createElement('div'); this.svgBox.className = 'coach-svgbox coach-panel';
       this.svg = document.createElementNS(SVGNS, 'svg');
       this.svg.setAttribute('viewBox', `0 0 ${LV} ${LV}`);
       this.svg.setAttribute('class', 'coach-svg');
-      this.userC = document.createElement('canvas');
-      this.userC.width = this.userC.height = DRAW;
-      this.userC.className = 'coach-user';
-      this.fxC = document.createElement('canvas');
-      this.fxC.width = this.fxC.height = DRAW;
-      this.fxC.className = 'coach-fx';
-      this.el.append(this.svg, this.userC, this.fxC);
+      this.svgBox.appendChild(this.svg);
+      // right/draw panel (user canvas + feedback overlay)
+      this.drawBox = document.createElement('div'); this.drawBox.className = 'coach-canvasbox coach-panel';
+      this.userC = document.createElement('canvas'); this.userC.width = this.userC.height = DRAW; this.userC.className = 'coach-user';
+      this.fxC = document.createElement('canvas'); this.fxC.width = this.fxC.height = DRAW; this.fxC.className = 'coach-fx';
+      const hint = document.createElement('div'); hint.className = 'coach-hint'; hint.textContent = 'Your turn — draw here';
+      this.drawBox.append(this.userC, this.fxC, hint);
+      this.el.append(this.svgBox, this.drawBox);
       this._bindDraw();
     }
 
@@ -90,26 +93,27 @@
       }, delay));
     }
     // animate step k; steps before are static-on, after are hidden
+    // (deliberately slow & gentle so learners can follow each line)
     animateStep(k) {
       this.clearTimers();
       this.steps.forEach((st, i) => { if (i !== k) st.strokes.forEach(s => this._setStrokeShown(s, i < k)); });
       let t = 0;
       this.steps[k].strokes.forEach(s => {
-        const dur = Math.min(1700, Math.max(420, s.len * 4));
+        const dur = Math.min(3000, Math.max(800, s.len * 7));
         this._animateStroke(s, t, dur);
-        t += dur + 120;
+        t += dur + 320;
       });
       this.stepIndex = k; this._emitStep();
       return t;
     }
     async play() {
-      if (this.mode !== 'watch') this.setMode('watch');
+      if (this.mode !== 'watch' && this.mode !== 'parallel') this.setMode('watch');
       let start = this.stepIndex + 1;
       if (start >= this.total) { start = 0; }
       this.playing = true; this._setPlaying(true);
       for (let i = start; i < this.total && this.playing; i++) {
         const dur = this.animateStep(i);
-        await wait(dur + 200);
+        await wait(dur + 550);   // a clear pause between steps
       }
       this.playing = false; this._setPlaying(false);
     }
@@ -119,16 +123,33 @@
     prevStep() { this.pause(); const k = Math.max(0, this.stepIndex - 1); this.showUpTo(k); }
     replayStep() { this.pause(); this.animateStep(Math.max(0, this.stepIndex)); }
     gotoStep(k) { this.pause(); this.showUpTo(k); }
+    // re-run the whole guide animation from the start (keeps the learner's drawing)
+    replayGuide() {
+      this.pause();
+      this.steps.forEach(st => st.strokes.forEach(s => this._setStrokeShown(s, false)));
+      this.stepIndex = -1; this._emitStep();
+      this.play();
+    }
 
-    /* ---------- modes ---------- */
+    /* ---------- modes: watch | trace | parallel ---------- */
     setMode(mode) {
       this.mode = mode;
       this.pause();
-      this.el.classList.toggle('tracing', mode === 'trace');
-      if (mode === 'trace') {
-        this.showUpTo(this.total - 1);   // show the whole guide faint to trace over
+      this.el.classList.remove('mode-watch', 'mode-trace', 'mode-parallel');
+      this.el.classList.add('mode-' + mode);
+      if (mode === 'watch') {
+        this.showUpTo(this.total - 1);   // show the finished drawing; user can replay
+      } else if (mode === 'trace') {
+        this.showUpTo(this.total - 1);   // whole guide, shown faint to trace over
         this._ensureField();
         this.clearTrace();
+      } else if (mode === 'parallel') {
+        // guide animates on the left; learner draws on the right (blank)
+        this._ensureField();
+        this.clearTrace();
+        this.steps.forEach(st => st.strokes.forEach(s => this._setStrokeShown(s, false)));
+        this.stepIndex = -1; this._emitStep();
+        setTimeout(() => { if (this.mode === 'parallel') this.play(); }, 500);
       }
       if (this.onMode) this.onMode(mode);
     }

@@ -119,12 +119,162 @@ const LESSONS = [
       { label: 'Whoosh — add the flames!', strokes: [F('M172 300Q185 350 200 305Q215 350 228 300')] },
     ],
   },
+
+  {
+    id: 'triangle', title: 'Triangle', cat: 'basics', level: 'beginner',
+    steps: [
+      { label: 'Draw the flat bottom', strokes: [F(_L(110, 290, 290, 290))] },
+      { label: 'Up the left side to the peak', strokes: [F(_L(110, 290, 200, 120))] },
+      { label: 'Down the right side to close it', strokes: [F(_L(200, 120, 290, 290))] },
+    ],
+  },
+  {
+    id: 'heart', title: 'Heart', cat: 'basics', level: 'beginner',
+    steps: [
+      { label: 'Lightly mark the top dip and the point', strokes: [G(_L(200, 178, 200, 200)), G(_L(200, 270, 200, 298))] },
+      { label: 'Draw the left hump down to the point', strokes: [F('M200 188C188 150 145 148 132 178C122 205 165 240 200 295')] },
+      { label: 'Draw the right hump to meet it', strokes: [F('M200 188C212 150 255 148 268 178C278 205 235 240 200 295')] },
+    ],
+  },
+  {
+    id: 'sun', title: 'Sunshine', cat: 'nature', level: 'beginner',
+    steps: [
+      { label: 'Draw the round sun', strokes: [F(_C(200, 200, 68))] },
+      { label: 'Add rays all the way around', strokes: [F(_L(280, 200, 320, 200)), F(_L(257, 143, 285, 115)), F(_L(200, 120, 200, 80)), F(_L(143, 143, 115, 115)), F(_L(120, 200, 80, 200)), F(_L(143, 257, 115, 285)), F(_L(200, 280, 200, 320)), F(_L(257, 257, 285, 285))] },
+      { label: 'Add a happy little face', strokes: [F(_C(180, 190, 6)), F(_C(220, 190, 6)), F('M175 215Q200 240 225 215')] },
+    ],
+  },
+  {
+    id: 'ladybug', title: 'Ladybug', cat: 'animals', level: 'beginner',
+    steps: [
+      { label: 'Draw the round body', strokes: [F(_C(200, 220, 90))] },
+      { label: 'Add the head at the top', strokes: [F('M150 165Q200 120 250 165')] },
+      { label: 'Draw the line down the middle', strokes: [F(_L(200, 135, 200, 308))] },
+      { label: 'Add the spots', strokes: [F(_C(155, 205, 15)), F(_C(245, 205, 15)), F(_C(165, 260, 12)), F(_C(235, 260, 12)), F(_C(200, 182, 11))] },
+      { label: 'Add the antennae', strokes: [F(_L(182, 128, 170, 98)), F(_C(170, 95, 6)), F(_L(218, 128, 230, 98)), F(_C(230, 95, 6))] },
+    ],
+  },
+  {
+    id: 'ice-cream', title: 'Ice Cream', cat: 'things', level: 'beginner',
+    steps: [
+      { label: 'Draw the cone', strokes: [F(_P([165, 250], [200, 360], [235, 250]))] },
+      { label: 'Add the criss-cross lines', strokes: [F(_L(178, 278, 205, 251)), F(_L(192, 300, 232, 262)), F(_L(222, 278, 195, 251)), F(_L(208, 300, 168, 262))] },
+      { label: 'Add the first scoop', strokes: [F(_C(178, 228, 42))] },
+      { label: 'Add a second scoop on top', strokes: [F(_C(222, 182, 38))] },
+      { label: 'Top it with a cherry', strokes: [F(_C(222, 138, 12)), F(_L(222, 127, 232, 110))] },
+    ],
+  },
+  {
+    id: 'sailboat', title: 'Sailboat', cat: 'things', level: 'beginner',
+    steps: [
+      { label: 'Draw the wavy water', strokes: [F('M70 300Q110 285 150 300Q190 315 230 300Q270 285 330 300')] },
+      { label: 'Draw the boat hull', strokes: [F('M115 295L285 295L255 335L145 335Z')] },
+      { label: 'Stand up the mast', strokes: [F(_L(200, 295, 200, 120))] },
+      { label: 'Add the big sail', strokes: [F(_P([208, 130], [208, 278], [300, 278]))] },
+      { label: 'Add the small sail', strokes: [F(_P([192, 155], [192, 278], [120, 278]))] },
+    ],
+  },
+  {
+    id: 'balloon', title: 'Balloon', cat: 'things', level: 'beginner',
+    steps: [
+      { label: 'Draw the round balloon', strokes: [F(_E(200, 170, 78, 95))] },
+      { label: 'Add the little knot', strokes: [F(_P([190, 262], [200, 278], [210, 262]))] },
+      { label: 'Draw the wavy string', strokes: [F('M200 278Q222 318 196 350Q174 376 200 396')] },
+      { label: 'Add a shiny highlight', strokes: [F('M165 132Q150 162 166 188')] },
+    ],
+  },
+  {
+    id: 'dog', title: 'Puppy Face', cat: 'animals', level: 'beginner',
+    steps: [
+      { label: 'Draw a round head', strokes: [F(_C(200, 205, 92))] },
+      { label: 'Add two floppy ears', strokes: [F(_E(118, 215, 30, 58)), F(_E(282, 215, 30, 58))] },
+      { label: 'Add the eyes', strokes: [F(_C(170, 192, 11)), F(_C(230, 192, 11))] },
+      { label: 'Draw the nose', strokes: [F(_E(200, 228, 16, 12))] },
+      { label: 'Add the mouth and tongue', strokes: [F('M200 240V258M200 258Q172 280 162 260M200 258Q228 280 238 260'), F('M192 268Q200 290 208 268')] },
+    ],
+  },
+  {
+    id: 'owl', title: 'Wise Owl', cat: 'animals', level: 'intermediate',
+    steps: [
+      { label: 'Draw the body — an egg shape', strokes: [F(_E(200, 215, 92, 118))] },
+      { label: 'Add two big eye circles', strokes: [F(_C(165, 165, 40)), F(_C(235, 165, 40))] },
+      { label: 'Add the pupils', strokes: [F(_C(165, 172, 15)), F(_C(235, 172, 15))] },
+      { label: 'Draw the pointy beak', strokes: [F(_P([186, 198], [200, 228], [214, 198]))] },
+      { label: 'Add the ear tufts', strokes: [F(_P([118, 108], [145, 150], [175, 120])), F(_P([282, 108], [255, 150], [225, 120]))] },
+      { label: 'Draw the wings on each side', strokes: [F('M115 205Q100 285 150 322'), F('M285 205Q300 285 250 322')] },
+      { label: 'Add the feet and a tummy line', strokes: [F(_L(178, 330, 178, 352)), F(_L(192, 330, 192, 352)), F(_L(208, 330, 208, 352)), F(_L(222, 330, 222, 352)), F('M150 235Q200 270 250 235')] },
+    ],
+  },
+  {
+    id: 'car', title: 'Little Car', cat: 'things', level: 'intermediate',
+    steps: [
+      { label: 'Draw the lower body', strokes: [F('M80 235H320V275H80Z')] },
+      { label: 'Add the curved roof', strokes: [F('M135 235Q165 185 240 185Q275 185 285 235')] },
+      { label: 'Add the windows', strokes: [F(_L(205, 192, 205, 235)), F(_L(150, 232, 265, 232))] },
+      { label: 'Draw the two wheels', strokes: [F(_C(140, 278, 28)), F(_C(280, 278, 28))] },
+      { label: 'Add hubs, a light and a door', strokes: [F(_C(140, 278, 11)), F(_C(280, 278, 11)), F(_C(312, 250, 8)), F(_L(210, 240, 210, 272))] },
+    ],
+  },
+  {
+    id: 'turtle', title: 'Sea Turtle', cat: 'animals', level: 'intermediate',
+    steps: [
+      { label: 'Draw the shell dome', strokes: [F('M115 250Q200 150 285 250')] },
+      { label: 'Close the bottom of the shell', strokes: [F('M115 250Q200 285 285 250')] },
+      { label: 'Add the head', strokes: [F(_C(312, 232, 26))] },
+      { label: 'Add the eye and a smile', strokes: [F(_C(320, 224, 5)), F('M298 240Q312 250 326 240')] },
+      { label: 'Draw the four flippers', strokes: [F(_E(145, 265, 28, 16)), F(_E(255, 265, 28, 16)), F(_E(170, 205, 16, 24)), F(_E(245, 205, 16, 24))] },
+      { label: 'Add the shell pattern', strokes: [F(_P([200, 165], [160, 225], [200, 255], [240, 225], [200, 165])), F(_L(160, 225, 130, 235)), F(_L(240, 225, 270, 235)), F(_L(200, 255, 200, 283))] },
+    ],
+  },
+  {
+    id: 'tree', title: 'Leafy Tree', cat: 'nature', level: 'intermediate',
+    steps: [
+      { label: 'Draw the trunk', strokes: [F('M180 360L186 250'), F('M220 360L214 250'), F(_L(180, 360, 220, 360))] },
+      { label: 'Add the branches', strokes: [F('M200 280Q160 240 138 212'), F('M200 280Q240 240 262 212'), F(_L(200, 300, 200, 180))] },
+      { label: 'Draw the leafy cloud top', strokes: [F('M125 200Q105 150 155 142Q165 102 212 112Q262 98 276 148Q318 160 292 206Q298 242 250 236Q200 250 152 236Q112 234 125 200Z')] },
+      { label: 'Add a couple of apples', strokes: [F(_C(170, 180, 8)), F(_C(235, 200, 8))] },
+    ],
+  },
+  {
+    id: 'castle', title: 'Castle', cat: 'places', level: 'advanced',
+    steps: [
+      { label: 'Draw the main wall', strokes: [F('M150 200H250V330H150Z')] },
+      { label: 'Add the two towers', strokes: [F('M110 170H150V330H110Z'), F('M250 170H290V330H250Z')] },
+      { label: 'Add battlements along the tops', strokes: [F('M110 170V155H120V165H132V155H142V165H150'), F('M250 170V155H260V165H272V155H282V165H290'), F('M150 200V188H162V198H174V188H186V198H198V188H210V198H222V188H234V198H246V188H250')] },
+      { label: 'Add tower roofs and flags', strokes: [F(_P([105, 155], [130, 110], [155, 155])), F(_P([245, 155], [270, 110], [295, 155])), F('M130 110V86L152 95L130 102'), F('M270 110V86L292 95L270 102')] },
+      { label: 'Draw the arched gate', strokes: [F('M178 330V250Q200 232 222 250V330')] },
+      { label: 'Add windows', strokes: [F('M122 210H138V236H122Z'), F('M262 210H278V236H262Z')] },
+    ],
+  },
+  {
+    id: 'mandala', title: 'Mandala', cat: 'basics', level: 'advanced',
+    steps: [
+      { label: 'Start with the center circle', strokes: [F(_C(200, 200, 26))] },
+      { label: 'Add the first ring', strokes: [F(_C(200, 200, 62))] },
+      { label: 'Draw a ring of petals', strokes: [F(_E(200, 138, 16, 28)), F(_E(244, 156, 28, 16)), F(_E(262, 200, 16, 28)), F(_E(244, 244, 28, 16)), F(_E(200, 262, 16, 28)), F(_E(156, 244, 28, 16)), F(_E(138, 200, 16, 28)), F(_E(156, 156, 28, 16))] },
+      { label: 'Add the outer ring', strokes: [F(_C(200, 200, 118))] },
+      { label: 'Draw the spokes', strokes: [F(_L(200, 82, 200, 318)), F(_L(82, 200, 318, 200)), F(_L(117, 117, 283, 283)), F(_L(283, 117, 117, 283))] },
+      { label: 'Finish with outer dots', strokes: [F(_C(200, 200, 152)), F(_C(200, 48, 8)), F(_C(200, 352, 8)), F(_C(48, 200, 8)), F(_C(352, 200, 8))] },
+    ],
+  },
+  {
+    id: 'rose', title: 'Rose', cat: 'nature', level: 'advanced',
+    steps: [
+      { label: 'Draw the spiral bud', strokes: [F('M200 178C214 171 226 185 218 199C208 215 184 207 184 189C184 165 214 159 232 177')] },
+      { label: 'Cup the bud with a petal', strokes: [F('M168 203C160 178 185 161 200 168C215 161 240 178 232 203')] },
+      { label: 'Add the side petals', strokes: [F('M165 208Q150 238 175 253Q195 245 195 218'), F('M235 208Q250 238 225 253Q205 245 205 218')] },
+      { label: 'Draw the outer bloom', strokes: [F('M150 218Q120 253 160 278Q140 303 180 303Q200 323 220 303Q260 303 240 278Q280 253 250 218')] },
+      { label: 'Add the stem', strokes: [F('M200 303L200 382')] },
+      { label: 'Add two leaves with veins', strokes: [F('M200 337Q150 327 130 362Q185 374 200 347'), F('M155 344Q178 352 195 354'), F('M200 360Q250 350 270 385Q215 395 200 368'), F('M245 374Q222 368 205 368')] },
+    ],
+  },
 ];
 
 const LESSON_CATS = [
   { id: 'basics', label: 'Basics', emoji: '✏️' },
   { id: 'animals', label: 'Animals', emoji: '🐾' },
   { id: 'nature', label: 'Nature', emoji: '🌿' },
+  { id: 'things', label: 'Things', emoji: '🎈' },
   { id: 'places', label: 'Places', emoji: '🏠' },
 ];
 
