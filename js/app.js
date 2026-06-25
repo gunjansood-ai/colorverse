@@ -229,8 +229,13 @@
     return `<div class="screen">
       ${appbar('Learn to Draw')}
       <div class="container">
-        <div class="hero-card hero-gen" style="background:linear-gradient(135deg,#7c5cff,#b06bff)">
-          <div><h3>Learn to draw, step by step ✏️</h3><p>Watch each line appear, then trace it yourself with live guidance.</p></div>
+        <div class="hero-card hero-gen" style="background:linear-gradient(135deg,#7c5cff,#b06bff);min-height:auto;display:block">
+          <h3>Learn to draw anything ✏️</h3>
+          <p style="margin:4px 0 0">Type what you want to draw — I'll generate it and show you how, step by step.</p>
+          <div class="learn-gen-row">
+            <input id="learnPrompt" class="learn-input" value="${store.learnPrompt || ''}" placeholder="e.g. a friendly robot, a tulip, a puppy…" oninput="CV.saveLearnPrompt(this.value)" onkeydown="if(event.key==='Enter')CV.generateLesson()"/>
+            <button class="btn btn-accent btn-sm" onclick="CV.generateLesson()">Generate ✨</button>
+          </div>
         </div>
         <div class="chips" style="margin-top:18px">
           <div class="chip-cat" onclick="CV.learnBrowse('all')">
@@ -251,8 +256,9 @@
   }
 
   let COACH = null, currentLesson = null;
-  function openStudio(lessonId) {
-    const lesson = LESSONS.find(l => l.id === lessonId); if (!lesson) return;
+  function openStudio(lessonOrId) {
+    const lesson = typeof lessonOrId === 'string' ? LESSONS.find(l => l.id === lessonOrId) : lessonOrId;
+    if (!lesson) return;
     currentLesson = lesson;
     const el = document.createElement('div'); el.className = 'studio mode-watch'; el.id = 'studio';
     el.innerHTML = studioHTML(lesson);
@@ -316,6 +322,106 @@
     const d = lesson.steps.flatMap(s => s.strokes.filter(k => !k.c).map(k => k.d)).join(' ');
     return `<svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg"><rect width="400" height="400" fill="#fff"/>
       <path d="${d}" fill="none" stroke="#1b1b1b" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  }
+
+  /* ----- AI prompt → drawing lesson (Phase 4) -----
+     Generate line art (OpenAI), trace it to vector paths in-browser (ImageTracer),
+     order the strokes big-shapes-first, and chunk them into teachable steps. */
+  let _tracer;
+  function ensureTracer() {
+    if (window.ImageTracer) return Promise.resolve();
+    if (_tracer) return _tracer;
+    const urls = [
+      'https://cdn.jsdelivr.net/npm/imagetracerjs@1.2.6/imagetracer_v1.2.6.min.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/imagetracerjs/1.2.6/imagetracer_v1.2.6.min.js',
+    ];
+    _tracer = new Promise((res, rej) => {
+      let i = 0;
+      const tryLoad = () => {
+        if (i >= urls.length) return rej(new Error('tracer load failed'));
+        const s = document.createElement('script');
+        s.src = urls[i++]; s.onload = res; s.onerror = tryLoad; document.head.appendChild(s);
+      };
+      tryLoad();
+    });
+    return _tracer;
+  }
+  function loadImageEl(src) {
+    return new Promise((res, rej) => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => res(i); i.onerror = rej; i.src = src; });
+  }
+  async function aiLessonFromImage(src, prompt) {
+    await ensureTracer();
+    const img = await loadImageEl(src);
+    const S = 512, c = document.createElement('canvas'); c.width = c.height = S;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, S, S);
+    const r = Math.min(S / img.width, S / img.height), w = img.width * r, h = img.height * r;
+    ctx.drawImage(img, (S - w) / 2, (S - h) / 2, w, h);
+    const idata = ctx.getImageData(0, 0, S, S), dd = idata.data;
+    for (let i = 0; i < dd.length; i += 4) {
+      const lum = 0.299 * dd[i] + 0.587 * dd[i + 1] + 0.114 * dd[i + 2], v = lum < 118 ? 0 : 255;
+      dd[i] = dd[i + 1] = dd[i + 2] = v; dd[i + 3] = 255;
+    }
+    const opts = { numberofcolors: 2, colorsampling: 0, pathomit: 26, ltres: 1, qtres: 1, roundcoords: 1, scale: 400 / S, strokewidth: 0, linefilter: true };
+    const svgstr = window.ImageTracer.imagedataToSVG(idata, opts);
+    const doc = new DOMParser().parseFromString(svgstr, 'image/svg+xml');
+    const ds = [...doc.querySelectorAll('path')].filter(p => {
+      const m = (p.getAttribute('fill') || '').match(/\d+/g);
+      return m && (+m[0] + +m[1] + +m[2]) / 3 < 100;       // keep dark (ink) paths
+    }).map(p => p.getAttribute('d')).filter(Boolean);
+    // measure bounding boxes to order + filter
+    const NS = 'http://www.w3.org/2000/svg';
+    const tmp = document.createElementNS(NS, 'svg');
+    tmp.style.cssText = 'position:absolute;width:0;height:0;opacity:0;pointer-events:none';
+    document.body.appendChild(tmp);
+    let items = ds.map(d => {
+      const pe = document.createElementNS(NS, 'path'); pe.setAttribute('d', d); tmp.appendChild(pe);
+      let bb; try { bb = pe.getBBox(); } catch (e) { bb = { width: 0, height: 0 }; }
+      return { d, area: bb.width * bb.height };
+    });
+    document.body.removeChild(tmp);
+    const full = 400 * 400;
+    items = items.filter(it => it.area > 45 && it.area < full * 0.9).sort((a, b) => b.area - a.area).slice(0, 34);
+    if (!items.length) throw new Error('Could not trace that image — try a simpler prompt.');
+    const N = Math.min(8, Math.max(4, Math.round(items.length / 4)));
+    const buckets = Array.from({ length: N }, () => []);
+    const per = Math.ceil(items.length / N);
+    items.forEach((it, i) => buckets[Math.min(N - 1, Math.floor(i / per))].push({ d: it.d }));
+    const labels = ['Block in the biggest shapes', 'Add the main shapes', 'Build up the form', 'Add the details', 'Add finer details', 'Keep adding detail', 'Finishing touches', 'Final details'];
+    const steps = buckets.filter(b => b.length).map((b, i) => ({ label: labels[i] || 'Add details', strokes: b }));
+    return { id: 'ai-' + Date.now(), title: prompt.length > 26 ? prompt.slice(0, 26) + '…' : prompt, cat: 'ai', level: 'custom', steps, ai: true };
+  }
+  function lessonOverlay(prompt, msg) {
+    const o = document.createElement('div'); o.className = 'modal-bg'; o.id = 'lessonOverlay';
+    o.innerHTML = `<div class="modal" style="text-align:center">
+      <div class="spin" style="margin:8px auto 16px"></div>
+      <h3>${msg || 'Creating your drawing lesson…'}</h3>
+      <p style="font-size:13px">"${prompt}"</p>
+      <p style="font-size:12px;color:var(--ink-3)">Generating the picture, then breaking it into steps</p></div>`;
+    return o;
+  }
+  async function runGenerateLesson() {
+    const prompt = (document.getElementById('learnPrompt')?.value || '').trim();
+    store.learnPrompt = prompt;
+    if (!prompt) { toast('Type what you want to draw'); return; }
+    const overlay = lessonOverlay(prompt);
+    document.body.appendChild(overlay);
+    try {
+      let image = null;
+      const r = await fetch('/api/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: prompt + ', single subject, simple bold outline', style: 'lineart', complexity: 'beginner' }),
+      });
+      if (r.ok) { const j = await r.json(); image = j.imageB64 || j.imageUrl; }
+      if (!image) { overlay.remove(); toast('Generation unavailable — check the API key'); return; }
+      overlay.querySelector('h3').textContent = 'Breaking it into steps…';
+      const lesson = await aiLessonFromImage(image, prompt);
+      overlay.remove();
+      openStudio(lesson);
+    } catch (e) {
+      overlay.remove();
+      toast(e.message || 'Could not create that lesson — try another prompt');
+    }
   }
 
   /* ---------------- EDITOR ---------------- */
@@ -679,11 +785,14 @@
       else if (action === 'clear') COACH.clearTrace();
     },
     colorLesson(id) {
-      const l = LESSONS.find(x => x.id === id); if (!l) return;
+      const l = (currentLesson && currentLesson.id === id) ? currentLesson : LESSONS.find(x => x.id === id);
+      if (!l) return;
       closeStudio();
       currentTitle = l.title;
       openEditorWith({ svg: lessonColorSVG(l) });
     },
+    saveLearnPrompt(v) { store.learnPrompt = v; },
+    generateLesson() { runGenerateLesson(); },
     // live filter the visible tiles by caption (no re-render, keeps input focus)
     search(q) {
       store.q = q;
