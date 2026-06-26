@@ -27,6 +27,14 @@
   function saveGallery() { try { localStorage.setItem('cv_gallery', JSON.stringify(store.gallery)); } catch (e) {} }
   function go(route) { location.hash = route; }
 
+  /* ---- AI usage cap (cost control): 5 generations per day, per device ---- */
+  const AI_DAILY_LIMIT = 5;
+  function aiKey() { return 'cv_ai_' + new Date().toISOString().slice(0, 10); }
+  function aiUsedToday() { try { return parseInt(localStorage.getItem(aiKey()) || '0', 10) || 0; } catch (e) { return 0; } }
+  function aiLimitReached() { return aiUsedToday() >= AI_DAILY_LIMIT; }
+  function aiBump() { try { localStorage.setItem(aiKey(), aiUsedToday() + 1); } catch (e) {} }
+  function aiLimitMsg() { return `Daily limit of ${AI_DAILY_LIMIT} AI images reached — resets tomorrow`; }
+
   /* ---------------- navigation tab bar ---------------- */
   function tabbar(active) {
     const tabs = [['discover','Discover','discover'],['generate','Generate','generate'],
@@ -414,6 +422,7 @@
     const prompt = (document.getElementById('learnPrompt')?.value || '').trim();
     store.learnPrompt = prompt;
     if (!prompt) { toast('Type what you want to draw'); return; }
+    if (aiLimitReached()) { toast(aiLimitMsg()); return; }
     const overlay = lessonOverlay(prompt);
     document.body.appendChild(overlay);
     try {
@@ -424,6 +433,7 @@
       });
       if (r.ok) { const j = await r.json(); image = j.imageB64 || j.imageUrl; apiErr = j.error; }
       if (!image) { overlay.remove(); toast(apiErr ? 'Image generation failed: ' + apiErr : 'Generation unavailable — add an OpenAI key'); return; }
+      aiBump();
       overlay.querySelector('h3').textContent = 'Breaking it into steps…';
       const lesson = await aiLessonFromImage(image, prompt);
       overlay.remove();
@@ -591,6 +601,7 @@
     const prompt = (document.getElementById('genPrompt')?.value || '').trim();
     store.gen.prompt = prompt;
     if (!prompt) { toast('Describe what you want to create'); return; }
+    if (aiLimitReached()) { toast(aiLimitMsg()); return; }
     const overlay = genOverlay(prompt);
     document.body.appendChild(overlay);
 
@@ -617,9 +628,10 @@
       toast('No AI key set — used a sample template');
     }
 
+    if (usedAI && image) aiBump();
     currentTitle = prompt.length > 24 ? prompt.slice(0, 24) + '…' : prompt;
     openEditorWith({ image, svg });
-    if (usedAI && image) toast('Generated with AI ✨');
+    if (usedAI && image) toast('Generated with AI ✨ · ' + (AI_DAILY_LIMIT - aiUsedToday()) + ' left today');
     overlay.remove();
   }
 
@@ -799,10 +811,14 @@
       }
     },
     colorLesson(id) {
+      // if the learner drew their own version, color THAT; otherwise color the system art
+      const myDrawing = COACH && COACH.userDrawingDataURL ? COACH.userDrawingDataURL() : null;
       const l = (currentLesson && currentLesson.id === id) ? currentLesson : LESSONS.find(x => x.id === id);
-      if (!l) return;
+      const baseTitle = l ? l.title : 'My drawing';
       closeStudio();
-      currentTitle = l.title;
+      if (myDrawing) { currentTitle = baseTitle + ' (my drawing)'; openEditorWith({ image: myDrawing }); return; }
+      if (!l) return;
+      currentTitle = baseTitle;
       openEditorWith({ svg: lessonColorSVG(l) });
     },
     saveLearnPrompt(v) { store.learnPrompt = v; },

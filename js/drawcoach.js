@@ -212,6 +212,20 @@
       this._on = 0; this._tot = 0; this._last = null;
       if (this.onScore) this.onScore(null);
     }
+    // The learner's own drawing, recolored to clean black line art (or null if blank).
+    userDrawingDataURL() {
+      const src = this.userC.getContext('2d').getImageData(0, 0, DRAW, DRAW);
+      const out = document.createElement('canvas'); out.width = out.height = DRAW;
+      const octx = out.getContext('2d');
+      const od = octx.createImageData(DRAW, DRAW), o = od.data, s = src.data;
+      let any = false;
+      for (let i = 0; i < s.length; i += 4) {
+        if (s[i + 3] > 24) { o[i] = o[i + 1] = o[i + 2] = 20; o[i + 3] = 255; any = true; }
+      }
+      if (!any) return null;
+      octx.putImageData(od, 0, 0);
+      return out.toDataURL('image/png');
+    }
     _bindDraw() {
       const ptLV = (e) => {
         const r = this.userC.getBoundingClientRect();
