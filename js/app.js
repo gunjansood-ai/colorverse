@@ -1,6 +1,9 @@
 /* ColorVerse — app shell, router, and screens */
 (function () {
   const app = document.getElementById('app');
+  // On the web the API is same-origin; in the native iOS/iPad app the bundle is
+  // loaded locally (capacitor://) so API calls must hit the deployed backend.
+  const API_BASE = (location.protocol === 'http:' || location.protocol === 'https:') ? '' : 'https://colorverse-delta.vercel.app';
   const store = {
     user: { name: 'Gunjan', initial: 'G', tier: 'Free' },
     gallery: loadGallery(),
@@ -274,6 +277,7 @@
       el.classList.remove('mode-watch', 'mode-trace', 'mode-parallel');
       el.classList.add('mode-' + m);
       el.querySelectorAll('.st-seg button').forEach(b => b.classList.toggle('active', b.dataset.m === m));
+      el.querySelectorAll('.erase-btn').forEach(b => b.classList.remove('active'));
     };
     COACH.onScore = (pct) => {
       const txt = pct == null ? null : 'Accuracy ' + pct + '%';
@@ -309,12 +313,14 @@
       </div>
       <div class="st-controls trace-only">
         <span class="badge" id="stScore">Trace the lines</span>
+        <button class="btn btn-ghost btn-sm erase-btn" onclick="CV.coach('erase')">${ICONS.eraser} Erase</button>
         <button class="btn btn-ghost btn-sm" onclick="CV.coach('clear')">🧽 Clear</button>
         <span style="font-size:12px;color:var(--ink-3)">Green = on the line · Red = follow the arrow</span>
       </div>
       <div class="st-controls parallel-only">
         <button class="icon-btn" onclick="CV.coach('replay-all')" title="Watch again">${ICONS.replay}</button>
         <span class="badge" id="stScoreP">Watch left, draw right</span>
+        <button class="btn btn-ghost btn-sm erase-btn" onclick="CV.coach('erase')">${ICONS.eraser} Erase</button>
         <button class="btn btn-ghost btn-sm" onclick="CV.coach('clear')">🧽 Clear</button>
       </div>`;
   }
@@ -412,7 +418,7 @@
     document.body.appendChild(overlay);
     try {
       let image = null, apiErr = null;
-      const r = await fetch('/api/generate', {
+      const r = await fetch(API_BASE + '/api/generate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: prompt + ', single subject, simple bold outline', style: 'lineart', complexity: 'beginner' }),
       });
@@ -590,7 +596,7 @@
 
     let image = null, svg = null, usedAI = false;
     try {
-      const r = await fetch('/api/generate', {
+      const r = await fetch(API_BASE + '/api/generate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, style: store.gen.style, complexity: store.gen.complexity }),
       });
@@ -786,7 +792,11 @@
       else if (action === 'prev') COACH.prevStep();
       else if (action === 'replay') COACH.replayStep();
       else if (action === 'replay-all') COACH.replayGuide();
-      else if (action === 'clear') COACH.clearTrace();
+      else if (action === 'clear') { COACH.clearTrace(); }
+      else if (action === 'erase') {
+        const on = COACH.toggleErase();
+        document.querySelectorAll('.erase-btn').forEach(b => b.classList.toggle('active', on));
+      }
     },
     colorLesson(id) {
       const l = (currentLesson && currentLesson.id === id) ? currentLesson : LESSONS.find(x => x.id === id);

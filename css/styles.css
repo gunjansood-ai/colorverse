@@ -268,6 +268,8 @@ img{max-width:100%;display:block}
 .play-btn:hover{background:var(--primary-600)}
 .st-controls .icon-btn{width:46px;height:46px;border-radius:50%;background:#fff;border:1px solid var(--line);display:grid;place-items:center;color:var(--ink-2)}
 .st-controls .icon-btn svg{width:22px;height:22px}
+.erase-btn svg{width:15px;height:15px;vertical-align:-2px}
+.erase-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
 .studio .trace-only,.studio .parallel-only{display:none}
 .studio.mode-trace .watch-only{display:none}
 .studio.mode-trace .trace-only{display:flex}

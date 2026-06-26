@@ -135,6 +135,7 @@
     setMode(mode) {
       this.mode = mode;
       this.pause();
+      this.erasing = false;
       this.el.classList.remove('mode-watch', 'mode-trace', 'mode-parallel');
       this.el.classList.add('mode-' + mode);
       if (mode === 'watch') {
@@ -241,19 +242,34 @@
     _segment(a, b) {
       const ctx = this.userC.getContext('2d');
       const sc = DRAW / LV;
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      if (this.erasing) {                       // erase part of the learner's drawing
+        ctx.save();
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.lineWidth = 22; ctx.beginPath();
+        ctx.moveTo(a.x * sc, a.y * sc); ctx.lineTo(b.x * sc, b.y * sc); ctx.stroke();
+        ctx.restore();
+        return;
+      }
       const ok = this._ok(b);
       ctx.strokeStyle = ok ? '#28C76F' : '#ff3b3b';
-      ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.lineWidth = 6;
       ctx.beginPath();
       ctx.moveTo(a.x * sc, a.y * sc); ctx.lineTo(b.x * sc, b.y * sc); ctx.stroke();
       this._tot++; if (ok) this._on++;
       if (this.onScore) this.onScore(Math.round(this._on / this._tot * 100));
     }
+    toggleErase() { this.erasing = !this.erasing; return this.erasing; }
     // live cursor: green ring when on track, red ring + arrow toward the line when off
     _cursor(p) {
       const ctx = this.fxC.getContext('2d'); const sc = DRAW / LV;
       ctx.clearRect(0, 0, DRAW, DRAW);
-      const ok = this._ok(p), cx = p.x * sc, cy = p.y * sc;
+      const cx = p.x * sc, cy = p.y * sc;
+      if (this.erasing) {                       // neutral eraser ring
+        ctx.strokeStyle = '#9aa0b4'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(cx, cy, 22, 0, 7); ctx.stroke(); return;
+      }
+      const ok = this._ok(p);
       if (ok) {
         ctx.strokeStyle = '#28C76F'; ctx.lineWidth = 3;
         ctx.beginPath(); ctx.arc(cx, cy, 14, 0, 7); ctx.stroke();
