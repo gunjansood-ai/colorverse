@@ -332,15 +332,19 @@
     if (window.ImageTracer) return Promise.resolve();
     if (_tracer) return _tracer;
     const urls = [
-      'https://cdn.jsdelivr.net/npm/imagetracerjs@1.2.6/imagetracer_v1.2.6.min.js',
-      'https://cdnjs.cloudflare.com/ajax/libs/imagetracerjs/1.2.6/imagetracer_v1.2.6.min.js',
+      'https://cdn.jsdelivr.net/npm/imagetracerjs@1.2.6/imagetracer_v1.2.6.js',
+      'https://unpkg.com/imagetracerjs@1.2.6/imagetracer_v1.2.6.js',
     ];
     _tracer = new Promise((res, rej) => {
       let i = 0;
       const tryLoad = () => {
-        if (i >= urls.length) return rej(new Error('tracer load failed'));
+        if (i >= urls.length) return rej(new Error('Could not load the drawing tracer'));
         const s = document.createElement('script');
-        s.src = urls[i++]; s.onload = res; s.onerror = tryLoad; document.head.appendChild(s);
+        s.src = urls[i++];
+        // a 200 that doesn't define the global counts as a failure → try next url
+        s.onload = () => window.ImageTracer ? res() : tryLoad();
+        s.onerror = tryLoad;
+        document.head.appendChild(s);
       };
       tryLoad();
     });
@@ -407,13 +411,13 @@
     const overlay = lessonOverlay(prompt);
     document.body.appendChild(overlay);
     try {
-      let image = null;
+      let image = null, apiErr = null;
       const r = await fetch('/api/generate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: prompt + ', single subject, simple bold outline', style: 'lineart', complexity: 'beginner' }),
       });
-      if (r.ok) { const j = await r.json(); image = j.imageB64 || j.imageUrl; }
-      if (!image) { overlay.remove(); toast('Generation unavailable — check the API key'); return; }
+      if (r.ok) { const j = await r.json(); image = j.imageB64 || j.imageUrl; apiErr = j.error; }
+      if (!image) { overlay.remove(); toast(apiErr ? 'Image generation failed: ' + apiErr : 'Generation unavailable — add an OpenAI key'); return; }
       overlay.querySelector('h3').textContent = 'Breaking it into steps…';
       const lesson = await aiLessonFromImage(image, prompt);
       overlay.remove();
