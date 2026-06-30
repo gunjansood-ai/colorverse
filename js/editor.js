@@ -43,17 +43,24 @@
       this._build();
     }
 
+    fit() {
+      const par = this.stage.parentElement; if (!par) return;
+      const f = Math.min((par.clientWidth - 16) / SIZE, (par.clientHeight - 16) / SIZE);
+      this.baseFit = Math.max(0.1, Math.min(1, f || 1));
+      this._applyTransform();
+    }
     _build() {
       this.stage.innerHTML = '';
       this.stage.style.position = 'relative';
       this.stage.style.width = SIZE + 'px';
       this.stage.style.height = SIZE + 'px';
-      const fit = Math.min(
-        (this.stage.parentElement.clientWidth - 24) / SIZE,
-        (this.stage.parentElement.clientHeight - 24) / SIZE
-      );
-      this.baseFit = Math.min(1, fit || 1);
-      this._applyTransform();
+      this.fit();
+      // re-fit once layout settles and whenever the window/orientation changes
+      requestAnimationFrame(() => this.fit());
+      setTimeout(() => this.fit(), 120);
+      this._onResize = () => { if (this.stage.isConnected) this.fit(); };
+      window.addEventListener('resize', this._onResize);
+      window.addEventListener('orientationchange', this._onResize);
 
       // paper
       this.paper = this._canvas(0);
