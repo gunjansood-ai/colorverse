@@ -32,6 +32,16 @@ jobs:
           mkdir -p "$HOME/private_keys"
           printf '%s' "$ASC_KEY_P8" > "$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8"
 
+      - name: Verify App Store Connect credentials
+        run: |
+          xcrun altool --list-apps \
+            --apiKey "${{ secrets.ASC_KEY_ID }}" \
+            --apiIssuer "${{ secrets.ASC_ISSUER_ID }}" \
+            --output-format json > /tmp/asc_check.json 2>&1 \
+            || { echo "::error::App Store Connect auth FAILED — ASC_KEY_ID / ASC_KEY_P8 / ASC_ISSUER_ID secrets are wrong or mismatched."; cat /tmp/asc_check.json; exit 1; }
+          echo "ASC auth OK. Apps visible to this key:"
+          python3 -c "import json;d=json.load(open('/tmp/asc_check.json'));print('\n'.join(a.get('Application',{}).get('name','?') if isinstance(a,dict) else str(a) for a in d.get('applications',[])) or '(none yet)')" || true
+
       - name: Archive (cloud-managed automatic signing)
         run: |
           xcodebuild -workspace ios/App/App.xcworkspace \
