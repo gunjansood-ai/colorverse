@@ -24,23 +24,44 @@ jobs:
       - name: Sync web assets into iOS project (runs pod install)
         run: npx cap sync ios
 
-      - name: Write App Store Connect API key
+      - name: Prepare & validate App Store Connect API key
         env:
           ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_KEY_ID_RAW: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID_RAW: ${{ secrets.ASC_ISSUER_ID }}
         run: |
+          KEY_ID=$(printf '%s' "$ASC_KEY_ID_RAW" | tr -d '[:space:]')
+          ISSUER_ID=$(printf '%s' "$ASC_ISSUER_ID_RAW" | tr -d '[:space:]')
+          echo "KEY_ID=$KEY_ID" >> "$GITHUB_ENV"
+          echo "ISSUER_ID=$ISSUER_ID" >> "$GITHUB_ENV"
+          echo "Key ID length: ${#KEY_ID} (expected 10) · Issuer ID length: ${#ISSUER_ID} (expected 36)"
+          [ "${#KEY_ID}" -eq 10 ] || { echo "::error::ASC_KEY_ID doesn't look like a 10-character Key ID"; exit 1; }
+          [ "${#ISSUER_ID}" -eq 36 ] || { echo "::error::ASC_ISSUER_ID doesn't look like a 36-character UUID"; exit 1; }
           mkdir -p "$HOME/private_keys"
-          printf '%s' "$ASC_KEY_P8" > "$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          P8="$HOME/private_keys/AuthKey_${KEY_ID}.p8"
+          if printf '%s' "$ASC_KEY_P8" | grep -q 'BEGIN PRIVATE KEY'; then
+            printf '%s\n' "$ASC_KEY_P8" > "$P8"
+          else
+            # allow a base64-encoded key (recommended paste method)
+            printf '%s' "$ASC_KEY_P8" | tr -d '[:space:]' | base64 -D > "$P8" 2>/dev/null \
+              || printf '%s' "$ASC_KEY_P8" | tr -d '[:space:]' | base64 -d > "$P8" \
+              || { echo "::error::ASC_KEY_P8 is neither a PEM key nor valid base64"; exit 1; }
+          fi
+          if openssl pkey -in "$P8" -noout 2>/dev/null; then
+            echo "p8 private key parses correctly ✓"
+          else
+            echo "::error::ASC_KEY_P8 does not contain a valid key. Re-copy it with: base64 -i AuthKey_${KEY_ID}.p8 | pbcopy  — then paste that into the secret."
+            exit 1
+          fi
 
       - name: Verify App Store Connect credentials
         run: |
           xcrun altool --list-apps \
-            --apiKey "${{ secrets.ASC_KEY_ID }}" \
-            --apiIssuer "${{ secrets.ASC_ISSUER_ID }}" \
+            --apiKey "$KEY_ID" \
+            --apiIssuer "$ISSUER_ID" \
             --output-format json > /tmp/asc_check.json 2>&1 \
-            || { echo "::error::App Store Connect auth FAILED — ASC_KEY_ID / ASC_KEY_P8 / ASC_ISSUER_ID secrets are wrong or mismatched."; cat /tmp/asc_check.json; exit 1; }
-          echo "ASC auth OK. Apps visible to this key:"
-          python3 -c "import json;d=json.load(open('/tmp/asc_check.json'));print('\n'.join(a.get('Application',{}).get('name','?') if isinstance(a,dict) else str(a) for a in d.get('applications',[])) or '(none yet)')" || true
+            || { echo "::error::Apple rejected the credentials (Key ID $KEY_ID). The .p8 content likely belongs to a different key, or the Issuer ID is wrong."; cat /tmp/asc_check.json; exit 1; }
+          echo "App Store Connect auth OK ✓"
 
       - name: Archive (cloud-managed automatic signing)
         run: |
@@ -49,9 +70,9 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath "$PWD/build/App.xcarchive" archive \
             -allowProvisioningUpdates \
-            -authenticationKeyPath "$HOME/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8" \
-            -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
-            -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}" \
+            -authenticationKeyPath "$HOME/private_keys/AuthKey_${KEY_ID}.p8" \
+            -authenticationKeyID "$KEY_ID" \
+            -authenticationKeyIssuerID "$ISSUER_ID" \
             DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
             CODE_SIGN_STYLE=Automatic \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}"
@@ -74,6 +95,6 @@ jobs:
             -exportPath "$PWD/build/export" \
             -exportOptionsPlist ExportOptions.plist \
             -allowProvisioningUpdates \
-            -authenticationKeyPath "$HOME/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8" \
-            -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
-            -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}"
+            -authenticationKeyPath "$HOME/private_keys/AuthKey_${KEY_ID}.p8" \
+            -authenticationKeyID "$KEY_ID" \
+            -authenticationKeyIssuerID "$ISSUER_ID"
