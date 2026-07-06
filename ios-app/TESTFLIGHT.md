@@ -9,7 +9,7 @@ Your Apple **Team ID** is already known: `6T4X2Z2XN2`.
 
 ### 1. App Store Connect app record
 1. Go to https://appstoreconnect.apple.com → **Apps** → **+** → **New App**.
-2. Platform **iOS**, Name **Little Artists**, Bundle ID **com.littleartists.app**
+2. Platform **iOS**, Name **Little Artists: Color & Draw**, Bundle ID **com.littleartists.app**
    (if the bundle ID isn't in the dropdown, first register it at
    https://developer.apple.com/account/resources/identifiers → **+** → App IDs).
 3. SKU: anything, e.g. `littleartists-001`.
