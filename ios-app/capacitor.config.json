@@ -1,0 +1,6 @@
+{
+  "appId": "com.colorverse.app",
+  "appName": "ColorVerse",
+  "webDir": "www",
+  "ios": { "contentInset": "always", "backgroundColor": "#ffffff" }
+}
