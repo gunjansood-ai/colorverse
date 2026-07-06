@@ -1,6 +1,6 @@
 {
-  "appId": "com.colorverse.app",
-  "appName": "ColorVerse",
+  "appId": "com.littleartists.app",
+  "appName": "Little Artists",
   "webDir": "www",
   "ios": { "contentInset": "always", "backgroundColor": "#ffffff" }
 }

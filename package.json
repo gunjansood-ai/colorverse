@@ -1,8 +1,8 @@
 {
-  "name": "colorverse",
+  "name": "little-artists",
   "version": "1.0.0",
   "private": true,
-  "description": "ColorVerse — AI-native digital coloring app. Imagine. Color. Share.",
+  "description": "Little Artists — AI-native kids coloring & drawing app. Imagine. Color. Share.",
   "scripts": {
     "dev": "npx serve .",
     "start": "npx serve ."

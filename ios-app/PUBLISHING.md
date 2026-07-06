@@ -6,7 +6,7 @@ with **Capacitor**. It bundles the web app locally and talks to your live backen
 the website automatically.
 
 - **App name:** ColorVerse
-- **Bundle ID:** `com.colorverse.app`
+- **Bundle ID:** `com.littleartists.app`
 - **App icon & splash:** already designed and wired in (the palette logo).
 - **Devices:** iPhone + iPad (universal), all orientations on iPad.
 
@@ -34,7 +34,7 @@ npx cap open ios       # opens the project in Xcode
 ### 2. Signing (in Xcode)
 - Select the **App** target → **Signing & Capabilities**.
 - Check **Automatically manage signing** and pick your **Team** (your Apple Developer account).
-- Bundle Identifier is `com.colorverse.app` — change it if that's taken (must be unique).
+- Bundle Identifier is `com.littleartists.app` — change it if that's taken (must be unique).
 
 ### 3. Test it
 - Pick an iPhone or iPad **simulator** (or your connected device) and press **▶ Run**.

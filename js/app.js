@@ -56,7 +56,7 @@
   function Landing() {
     return `<div class="landing">
       <div class="left">
-        <div class="brand"><div class="logo">🎨</div><h1>ColorVerse</h1></div>
+        <div class="brand"><div class="logo">🎨</div><h1>Little Artists</h1></div>
         <div class="tag">Imagine. Color. Share.</div>
         <p style="max-width:380px">AI-powered coloring made simple for everyone. Generate coloring pages from a prompt, turn photos into line art, and color with realistic brushes.</p>
         <div style="display:flex;flex-direction:column;gap:12px;max-width:340px">
@@ -854,7 +854,7 @@
       const f = CV._exFmt || 'png';
       const ba = document.getElementById('swBa')?.classList.contains('on');
       const tl = document.getElementById('swTl')?.classList.contains('on');
-      const name = (currentTitle || 'colorverse').replace(/[^\w]+/g, '_');
+      const name = (currentTitle || 'little_artists').replace(/[^\w]+/g, '_');
       if (tl) {
         toast('Rendering time-lapse…');
         try { const blob = await ED.exportTimelapse(15); download(URL.createObjectURL(blob), name + '_timelapse.webm'); }
@@ -892,7 +892,7 @@
       const img = ED.exportPNG(false);
       const pw = pdf.internal.pageSize.getWidth(), s = pw - 60;
       pdf.addImage(img, 'PNG', 30, 40, s, s);
-      pdf.setFontSize(10); pdf.text(currentTitle + '  ·  ColorVerse', 30, s + 70);
+      pdf.setFontSize(10); pdf.text(currentTitle + '  ·  Little Artists', 30, s + 70);
       pdf.save(name + '.pdf');
     } catch (e) {
       const w = window.open('');
