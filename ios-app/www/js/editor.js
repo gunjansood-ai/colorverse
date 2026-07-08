@@ -295,11 +295,11 @@
           ctx.globalAlpha = A;
           ctx.beginPath(); ctx.ellipse(0, 0, r * 1.05, r * 0.85, 0, 0, 7); ctx.fill();
           ctx.lineCap = 'round';
-          for (let i = 0; i < 6; i++) {
-            const off = (i / 5 - 0.5) * r * 1.5;
-            const tone = i % 2 ? 'rgba(255,255,255,.16)' : 'rgba(0,0,0,.12)';
+          for (let i = 0; i < 4; i++) {
+            const off = (i / 3 - 0.5) * r * 1.3 + (Math.random() - 0.5) * r * 0.3;
+            const tone = i % 2 ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.06)';
             ctx.strokeStyle = tone;
-            ctx.lineWidth = Math.max(1, r * 0.16);
+            ctx.lineWidth = Math.max(1, r * 0.12);
             ctx.beginPath(); ctx.moveTo(-r, off); ctx.lineTo(r, off * 0.85); ctx.stroke();
           }
           break;
@@ -335,7 +335,7 @@
         }
         case 'metallic': {
           const g = ctx.createRadialGradient(x - r / 3, y - r / 3, 1, x, y, r);
-          g.addColorStop(0, '#ffffff'); g.addColorStop(.35, col); g.addColorStop(1, 'rgba(0,0,0,.30)');
+          g.addColorStop(0, '#ffffff'); g.addColorStop(.35, col); g.addColorStop(1, 'rgba(0,0,0,.14)');
           ctx.globalAlpha = A;
           ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
           ctx.strokeStyle = 'rgba(255,255,255,.5)';           // specular glint
