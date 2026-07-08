@@ -92,19 +92,31 @@
         s.el.style.strokeDashoffset = 0;
       }, delay));
     }
-    // animate step k; steps before are static-on, after are hidden
-    // (deliberately slow & gentle so learners can follow each line)
+    // animate step k; steps before are static-on, after are hidden.
+    // Pacing scales with the real path length so long outlines don't whip by:
+    // short strokes ~1s, long traced outlines up to 8s. When a step has many
+    // strokes, later ones overlap the tail of the previous so a complex step
+    // still finishes in a reasonable time.
     animateStep(k) {
       this.clearTimers();
       this.steps.forEach((st, i) => { if (i !== k) st.strokes.forEach(s => this._setStrokeShown(s, i < k)); });
-      let t = 0;
-      this.steps[k].strokes.forEach(s => {
-        const dur = Math.min(3000, Math.max(800, s.len * 7));
+      const strokes = this.steps[k].strokes;
+      const many = strokes.length > 4;
+      let t = 0, end = 0;
+      strokes.forEach(s => {
+        const dur = Math.min(8000, Math.max(950, s.len * 11));
         this._animateStroke(s, t, dur);
-        t += dur + 320;
+        end = Math.max(end, t + dur);
+        // dense steps: overlap the next stroke into the last 30% of this one
+        t += many ? dur * 0.7 : dur + 300;
       });
+      // safety net — force every stroke of this step fully drawn at the end,
+      // even if a CSS transition was interrupted (backgrounded tab, mode switch)
+      this._timers.push(setTimeout(() => {
+        strokes.forEach(s => this._setStrokeShown(s, true));
+      }, end + 120));
       this.stepIndex = k; this._emitStep();
-      return t;
+      return end + 150;
     }
     async play() {
       if (this.mode !== 'watch' && this.mode !== 'parallel') this.setMode('watch');

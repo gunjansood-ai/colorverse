@@ -8,7 +8,21 @@
     user: { name: 'Gunjan', initial: 'G', tier: 'Free' },
     gallery: loadGallery(),
     gen: { prompt: '', style: 'cartoon', complexity: 'beginner' },
+    levelSel: 'all',        // Color tab skill filter
+    learnLevelSel: 'all',   // Draw tab skill filter
+    learnComplexity: 'beginner',
   };
+  const DIFS = [['beginner','Easy'],['intermediate','Medium'],['advanced','Detailed']];
+  const LEVELS = [['all','All levels'],['beginner','🟢 Easy'],['intermediate','🟡 Medium'],['advanced','🔴 Detailed']];
+  function difRow(scope, sel, extra) {
+    return `<div class="dif-row" data-scope="${scope}">
+      ${DIFS.map(([v,l]) => `<div class="dif ${sel===v?'active':''}" onclick="CV.setDif('${scope}','${v}',this)">${l}</div>`).join('')}
+      ${extra || ''}</div>`;
+  }
+  function levelRow(sel, fn) {
+    return `<div class="opt-row" style="margin:12px 0 0">
+      ${LEVELS.map(([v,l]) => `<div class="opt ${sel===v?'active':''}" onclick="CV.${fn}('${v}')">${l}</div>`).join('')}</div>`;
+  }
 
   /* ---------------- utilities ---------------- */
   function svgThumb(id) { return LINEART[id] || LINEART.cat; }
@@ -37,8 +51,8 @@
 
   /* ---------------- navigation tab bar ---------------- */
   function tabbar(active) {
-    const tabs = [['discover','Discover','discover'],['generate','Generate','generate'],
-      ['learn','Learn','learn'],['gallery','Gallery','gallery'],['profile','Profile','profile']];
+    const tabs = [['discover','Color','discover'],['learn','Draw','learn'],
+      ['gallery','Gallery','gallery'],['profile','Profile','profile']];
     return `<nav class="tabbar">${tabs.map(([r,l,ic]) =>
       `<button class="${active===r?'active':''}" onclick="location.hash='#/${r}'">${ICONS[ic]}<span>${l}</span></button>`).join('')}</nav>`;
   }
@@ -84,28 +98,29 @@
   /* ---------------- DISCOVER ---------------- */
   function Discover() {
     const sel = store.browseCat || 'all';
+    const lv = store.levelSel || 'all';
     const featured = CATALOG.slice(0, 6);
-    const browse = sel === 'all' ? CATALOG : CATALOG.filter(p => p.cat === sel);
+    const browse = CATALOG.filter(p => (sel === 'all' || p.cat === sel) && (lv === 'all' || p.level === lv));
     return `<div class="screen">
-      ${appbar('Home / Discover')}
+      ${appbar('Color')}
       <div class="container">
-        <div class="search">${ICONS.search}<input value="${store.q||''}" placeholder="Search ${CATALOG.length} coloring pages…" oninput="CV.search(this.value)"/></div>
-        <div class="cards grid-2" style="margin-top:16px">
-          <div class="hero-card hero-gen" onclick="location.hash='#/generate'">
-            <div><h3>AI Generate</h3><p>Create any coloring page with a prompt</p></div>
-            <span class="emoji">✨</span>
+        <div class="hero-card hero-gen" style="min-height:auto;display:block">
+          <h3>Create a coloring page ✨</h3>
+          <p style="margin:4px 0 0">Describe anything — I'll turn it into a page you can color.</p>
+          <div class="learn-gen-row">
+            <input id="genPrompt" class="learn-input" value="${store.gen.prompt || ''}" placeholder="e.g. a dragon birthday party" oninput="CV.savePrompt(this.value)" onkeydown="if(event.key==='Enter')CV.generate()"/>
+            <button class="btn btn-accent btn-sm" onclick="CV.generate()">Create ✨</button>
           </div>
-          <div class="hero-card hero-import" onclick="CV.import()">
-            <div><h3>Import Image</h3><p>Turn any image into a coloring page</p></div>
-            <span class="emoji">🖼️</span>
-          </div>
+          ${difRow('gen', store.gen.complexity, `<div class="dif ghost" onclick="CV.import()">📷 Import photo</div>`)}
         </div>
-        <div class="chips" style="margin-top:18px">
+        <div class="search" style="margin-top:14px">${ICONS.search}<input value="${store.q||''}" placeholder="Search ${CATALOG.length} coloring pages…" oninput="CV.search(this.value)"/></div>
+        <div class="chips" style="margin-top:14px">
           <div class="chip-cat" onclick="CV.browse('all')">
             <div class="bubble" style="${sel==='all'?'border-color:var(--primary);color:var(--primary)':''}">✨</div><span>All</span></div>
           ${CAT_META.map(c => `<div class="chip-cat" onclick="CV.browse('${c.id}')">
             <div class="bubble" style="${sel===c.id?'border-color:var(--primary);color:var(--primary)':''}">${c.emoji}</div><span>${c.label}</span></div>`).join('')}
         </div>
+        ${levelRow(lv, 'level')}
         <div class="section-head"><h3>Featured For You</h3><a class="see-all" onclick="CV.browse('all')">See All</a></div>
         <div class="cards grid-3">${featured.map(p => tile(p.id, p.title, p.level)).join('')}</div>
         <div class="section-head"><h3>${sel==='all' ? 'Browse All Pages' : (CAT_META.find(c=>c.id===sel)||{}).label} <span class="badge" style="margin-left:6px">${browse.length}</span></h3></div>
@@ -122,31 +137,6 @@
     return `<div class="tile" onclick="CV.open('${id}')">
       <div class="thumb">${thumb}<div class="heart">${ICONS.heart}</div>${badge}</div>
       <div class="cap">${title || (c && c.title) || 'Coloring Page'}</div>
-    </div>`;
-  }
-
-  /* ---------------- GENERATE ---------------- */
-  function Generate() {
-    const g = store.gen;
-    return `<div class="screen">
-      ${appbar('Generate', { back: true })}
-      <div class="container" style="max-width:640px">
-        <div class="field-label">Describe what you want to create</div>
-        <textarea class="prompt-box" id="genPrompt" oninput="CV.savePrompt(this.value)" placeholder="e.g. Cute baby Hanuman eating mangoes">${g.prompt}</textarea>
-        <div class="field-label">Choose Style</div>
-        <div class="style-row">
-          ${STYLES.map(s => `<div class="style-card ${g.style===s.id?'active':''}" onclick="CV.setStyle('${s.id}')">
-            <div class="ic">${s.ic}</div>${s.label}</div>`).join('')}
-        </div>
-        <div class="field-label">Complexity</div>
-        <div class="complexity">
-          ${COMPLEXITY.map(c => `<div class="cx-card ${g.complexity===c.id?'active':''}" onclick="CV.setCx('${c.id}')">
-            <div class="t">${c.t}</div><div class="s">${c.s}</div></div>`).join('')}
-        </div>
-        <button class="btn btn-primary btn-block" style="margin-top:24px" onclick="CV.generate()">Generate ✨</button>
-        <p style="text-align:center;font-size:12px;margin-top:10px">Free tier: limited generations · <a class="see-all" onclick="CV.premium()">Go unlimited</a></p>
-      </div>
-      ${tabbar('generate')}
     </div>`;
   }
 
@@ -236,9 +226,10 @@
   /* ---------------- LEARN TO DRAW ---------------- */
   function Learn() {
     const sel = store.learnCat || 'all';
-    const list = sel === 'all' ? LESSONS : LESSONS.filter(l => l.cat === sel);
+    const lv = store.learnLevelSel || 'all';
+    const list = LESSONS.filter(l => (sel === 'all' || l.cat === sel) && (lv === 'all' || l.level === lv));
     return `<div class="screen">
-      ${appbar('Learn to Draw')}
+      ${appbar('Draw')}
       <div class="container">
         <div class="hero-card hero-gen" style="background:linear-gradient(135deg,#7c5cff,#b06bff);min-height:auto;display:block">
           <h3>Learn to draw anything ✏️</h3>
@@ -247,6 +238,7 @@
             <input id="learnPrompt" class="learn-input" value="${store.learnPrompt || ''}" placeholder="e.g. a friendly robot, a tulip, a puppy…" oninput="CV.saveLearnPrompt(this.value)" onkeydown="if(event.key==='Enter')CV.generateLesson()"/>
             <button class="btn btn-accent btn-sm" onclick="CV.generateLesson()">Generate ✨</button>
           </div>
+          ${difRow('learn', store.learnComplexity)}
         </div>
         <div class="chips" style="margin-top:18px">
           <div class="chip-cat" onclick="CV.learnBrowse('all')">
@@ -254,6 +246,7 @@
           ${LESSON_CATS.map(c => `<div class="chip-cat" onclick="CV.learnBrowse('${c.id}')">
             <div class="bubble" style="${sel===c.id?'border-color:var(--primary);color:var(--primary)':''}">${c.emoji}</div><span>${c.label}</span></div>`).join('')}
         </div>
+        ${levelRow(lv, 'learnLevel')}
         <div class="section-head"><h3>${sel==='all'?'All Lessons':(LESSON_CATS.find(c=>c.id===sel)||{}).label} <span class="badge" style="margin-left:6px">${list.length}</span></h3></div>
         <div class="cards grid-3">
           ${list.map(l => `<div class="tile" onclick="CV.learn('${l.id}')">
@@ -367,7 +360,14 @@
   function loadImageEl(src) {
     return new Promise((res, rej) => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => res(i); i.onerror = rej; i.src = src; });
   }
-  async function aiLessonFromImage(src, prompt) {
+  // difficulty → tracing detail: how many strokes to keep and how many steps
+  const LESSON_DETAIL = {
+    beginner:     { omit: 40, maxStrokes: 20, minSteps: 3, maxSteps: 5 },
+    intermediate: { omit: 26, maxStrokes: 34, minSteps: 4, maxSteps: 8 },
+    advanced:     { omit: 14, maxStrokes: 60, minSteps: 6, maxSteps: 10 },
+  };
+  async function aiLessonFromImage(src, prompt, level) {
+    const D = LESSON_DETAIL[level] || LESSON_DETAIL.intermediate;
     await ensureTracer();
     const img = await loadImageEl(src);
     const S = 512, c = document.createElement('canvas'); c.width = c.height = S;
@@ -380,7 +380,7 @@
       const lum = 0.299 * dd[i] + 0.587 * dd[i + 1] + 0.114 * dd[i + 2], v = lum < 118 ? 0 : 255;
       dd[i] = dd[i + 1] = dd[i + 2] = v; dd[i + 3] = 255;
     }
-    const opts = { numberofcolors: 2, colorsampling: 0, pathomit: 26, ltres: 1, qtres: 1, roundcoords: 1, scale: 400 / S, strokewidth: 0, linefilter: true };
+    const opts = { numberofcolors: 2, colorsampling: 0, pathomit: D.omit, ltres: 1, qtres: 1, roundcoords: 1, scale: 400 / S, strokewidth: 0, linefilter: true };
     const svgstr = window.ImageTracer.imagedataToSVG(idata, opts);
     const doc = new DOMParser().parseFromString(svgstr, 'image/svg+xml');
     const ds = [...doc.querySelectorAll('path')].filter(p => {
@@ -399,9 +399,9 @@
     });
     document.body.removeChild(tmp);
     const full = 400 * 400;
-    items = items.filter(it => it.area > 45 && it.area < full * 0.9).sort((a, b) => b.area - a.area).slice(0, 34);
+    items = items.filter(it => it.area > 45 && it.area < full * 0.9).sort((a, b) => b.area - a.area).slice(0, D.maxStrokes);
     if (!items.length) throw new Error('Could not trace that image — try a simpler prompt.');
-    const N = Math.min(8, Math.max(4, Math.round(items.length / 4)));
+    const N = Math.min(D.maxSteps, Math.max(D.minSteps, Math.round(items.length / 4)));
     const buckets = Array.from({ length: N }, () => []);
     const per = Math.ceil(items.length / N);
     items.forEach((it, i) => buckets[Math.min(N - 1, Math.floor(i / per))].push({ d: it.d }));
@@ -423,19 +423,25 @@
     store.learnPrompt = prompt;
     if (!prompt) { toast('Type what you want to draw'); return; }
     if (aiLimitReached()) { toast(aiLimitMsg()); return; }
+    const level = store.learnComplexity || 'beginner';
+    const HINT = {
+      beginner: ', single subject, very simple bold outline, few lines',
+      intermediate: ', single subject, simple bold outline',
+      advanced: ', single subject, clear bold outline with more detail',
+    };
     const overlay = lessonOverlay(prompt);
     document.body.appendChild(overlay);
     try {
       let image = null, apiErr = null;
       const r = await fetch(API_BASE + '/api/generate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: prompt + ', single subject, simple bold outline', style: 'lineart', complexity: 'beginner' }),
+        body: JSON.stringify({ prompt: prompt + (HINT[level] || HINT.beginner), style: 'lineart', complexity: level }),
       });
       if (r.ok) { const j = await r.json(); image = j.imageB64 || j.imageUrl; apiErr = j.error; }
       if (!image) { overlay.remove(); toast(apiErr ? 'Image generation failed: ' + apiErr : 'Generation unavailable — add an OpenAI key'); return; }
       aiBump();
       overlay.querySelector('h3').textContent = 'Breaking it into steps…';
-      const lesson = await aiLessonFromImage(image, prompt);
+      const lesson = await aiLessonFromImage(image, prompt, level);
       overlay.remove();
       openStudio(lesson);
     } catch (e) {
@@ -794,6 +800,20 @@
     import() { importImage(); },
     browse(cat) { store.browseCat = cat; store.q = ''; render(); },
     learnBrowse(cat) { store.learnCat = cat; render(); },
+    level(v) { store.levelSel = v; render(); },
+    learnLevel(v) { store.learnLevelSel = v; render(); },
+    // difficulty chips in the Color / Draw hero boxes (no re-render, keeps typed prompt)
+    setDif(scope, v, el) {
+      if (scope === 'gen') {
+        const t = document.getElementById('genPrompt'); if (t) store.gen.prompt = t.value;
+        store.gen.complexity = v;
+      } else {
+        const t = document.getElementById('learnPrompt'); if (t) store.learnPrompt = t.value;
+        store.learnComplexity = v;
+      }
+      const row = el.closest('.dif-row');
+      if (row) row.querySelectorAll('.dif:not(.ghost)').forEach(d => d.classList.toggle('active', d === el));
+    },
     learn(id) { openStudio(id); },
     closeStudio() { closeStudio(); },
     coachMode(m) { if (COACH) COACH.setMode(m); },
@@ -906,7 +926,7 @@
     const h = location.hash || '#/';
     let html;
     if (h.startsWith('#/discover')) html = Discover();
-    else if (h.startsWith('#/generate')) html = Generate();
+    else if (h.startsWith('#/generate')) html = Discover();  // old route → Color tab
     else if (h.startsWith('#/gallery')) { store.gallery = loadGallery(); html = Gallery(); }
     else if (h.startsWith('#/learn')) html = Learn();
     else if (h.startsWith('#/profile')) html = Profile();

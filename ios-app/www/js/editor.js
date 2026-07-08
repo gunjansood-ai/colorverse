@@ -5,16 +5,26 @@
 (function (global) {
   const SIZE = 700; // internal resolution
 
+  // Each brush has its own renderer for a realistic feel:
+  //   pencil     — thin graphite core with grain speckle, hard edge
+  //   marker     — flat translucent chisel tip that follows stroke direction
+  //   crayon     — waxy, uneven coverage with paper-grain gaps
+  //   watercolor — soft wet wash, pigment pooling at the edge
+  //   oil        — thick opaque paint with directional bristle streaks
+  //   airbrush   — fine gaussian spray fading outward
+  //   glitter    — sparkles with star glints
+  //   metallic   — shiny gradient with a specular highlight
+  //   texture    — canvas cross-hatch
   const BRUSHES = {
-    pencil:    { opacity: .9, soft: 0,  texture: 'grain' },
-    marker:    { opacity: .7, soft: 0,  texture: 'flat'  },
-    crayon:    { opacity: .85,soft: 1,  texture: 'grain' },
-    watercolor:{ opacity: .35,soft: 14, texture: 'flat'  },
-    oil:       { opacity: 1,  soft: 2,  texture: 'flat'  },
-    airbrush:  { opacity: .25,soft: 22, texture: 'spray' },
-    glitter:   { opacity: .9, soft: 2,  texture: 'glitter'},
-    metallic:  { opacity: 1,  soft: 4,  texture: 'metal' },
-    texture:   { opacity: .8, soft: 0,  texture: 'grain' },
+    pencil:    { opacity: .95 },
+    marker:    { opacity: .45 },
+    crayon:    { opacity: .85 },
+    watercolor:{ opacity: .55 },
+    oil:       { opacity: 1   },
+    airbrush:  { opacity: .55 },
+    glitter:   { opacity: .9  },
+    metallic:  { opacity: 1   },
+    texture:   { opacity: .8  },
   };
 
   const LAYER_DEFS = [
@@ -166,8 +176,8 @@
         if (this.tool === 'zoom') { panStart = { x: e.clientX - this.tx, y: e.clientY - this.ty }; return; }
         if (this.tool === 'fill') { this.floodFill(pt.x | 0, pt.y | 0); this._pushUndo(); this._recordFrame(); return; }
         if (this.tool === 'picker') { this.pickColor(pt.x | 0, pt.y | 0); return; }
-        this.drawing = true; last = pt;
-        this._stamp(pt.x, pt.y, e.pressure || 0.5);
+        this.drawing = true; last = pt; this._ang = 0;
+        this._stamp(pt.x, pt.y, e.pressure || 0.5, this._ang);
       });
 
       s.addEventListener('pointermove', (e) => {
@@ -188,10 +198,11 @@
         if (!this.drawing) return;
         const pr = e.pressure || 0.5;
         const dist = Math.hypot(pt.x - last.x, pt.y - last.y);
+        if (dist > 0.5) this._ang = Math.atan2(pt.y - last.y, pt.x - last.x);
         const steps = Math.max(1, Math.floor(dist / 3));
         for (let i = 1; i <= steps; i++) {
           this._stamp(last.x + (pt.x - last.x) * i / steps,
-                      last.y + (pt.y - last.y) * i / steps, pr);
+                      last.y + (pt.y - last.y) * i / steps, pr, this._ang);
         }
         last = pt;
       });
@@ -213,45 +224,145 @@
       }, { passive: false });
     }
 
-    _stamp(x, y, pressure) {
+    _stamp(x, y, pressure, angle = 0) {
       const ctx = this.layers[this.activeLayer].getContext('2d');
       const b = BRUSHES[this.brush] || BRUSHES.crayon;
       const r = this.size / 2 * (0.6 + pressure * 0.8);
+      const col = this.color;
+      const A = (b.opacity || 1) * this.opacity;
       ctx.save();
       if (this.tool === 'eraser') {
         ctx.globalCompositeOperation = 'destination-out';
         ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = 'rgba(0,0,0,1)'; ctx.fill();
         ctx.restore(); return;
       }
-      ctx.globalAlpha = b.opacity * this.opacity;
-      ctx.fillStyle = this.color;
-      ctx.strokeStyle = this.color;
-      if (b.soft) { ctx.shadowColor = this.color; ctx.shadowBlur = b.soft; }
+      ctx.fillStyle = col; ctx.strokeStyle = col;
 
-      if (b.texture === 'spray') {
-        for (let i = 0; i < 26; i++) {
-          const a = Math.random() * 7, rr = Math.random() * r;
-          ctx.globalAlpha = b.opacity * this.opacity * Math.random();
-          ctx.beginPath(); ctx.arc(x + Math.cos(a) * rr, y + Math.sin(a) * rr, 1.1, 0, 7); ctx.fill();
+      switch (this.brush) {
+        case 'pencil': {
+          // thin graphite core + grain speckle, hard edge
+          const pr2 = Math.max(0.8, r * 0.32);
+          ctx.globalAlpha = A;
+          ctx.beginPath(); ctx.arc(x, y, pr2, 0, 7); ctx.fill();
+          ctx.globalAlpha = A * 0.3;
+          for (let i = 0; i < 5; i++) {
+            const a = Math.random() * 7, rr = pr2 * (0.6 + Math.random());
+            ctx.beginPath(); ctx.arc(x + Math.cos(a) * rr, y + Math.sin(a) * rr, 0.6, 0, 7); ctx.fill();
+          }
+          break;
         }
-      } else if (b.texture === 'glitter') {
-        ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
-        for (let i = 0; i < 6; i++) {
-          ctx.globalAlpha = 1; ctx.fillStyle = ['#fff','#ffe9a8',this.color][i % 3];
-          ctx.beginPath(); ctx.arc(x + (Math.random()-.5)*r*1.6, y + (Math.random()-.5)*r*1.6, Math.random()*1.6+.6, 0, 7); ctx.fill();
+        case 'marker': {
+          // flat chisel tip aligned with stroke direction; overlaps darken like ink
+          ctx.translate(x, y); ctx.rotate(angle);
+          ctx.globalAlpha = A;
+          const w = r * 1.15, h = Math.max(1.4, r * 0.55);
+          ctx.beginPath();
+          if (ctx.roundRect) ctx.roundRect(-w, -h, w * 2, h * 2, h);
+          else ctx.rect(-w, -h, w * 2, h * 2);
+          ctx.fill();
+          break;
         }
-      } else if (b.texture === 'metal') {
-        const g = ctx.createRadialGradient(x - r/3, y - r/3, 1, x, y, r);
-        g.addColorStop(0, '#ffffff'); g.addColorStop(.4, this.color); g.addColorStop(1, '#00000044');
-        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
-      } else if (b.texture === 'grain') {
-        ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
-        ctx.globalAlpha = b.opacity * this.opacity * .25;
-        for (let i = 0; i < 4; i++) {
-          ctx.beginPath(); ctx.arc(x + (Math.random()-.5)*r, y + (Math.random()-.5)*r, r*0.4, 0, 7); ctx.fill();
+        case 'crayon': {
+          // waxy, patchy coverage with paper-grain gaps and a rough rim
+          ctx.globalAlpha = A * 0.5;
+          ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+          for (let i = 0; i < 10; i++) {
+            const a = Math.random() * 7, rr = Math.random() * r;
+            ctx.globalAlpha = A * (0.15 + Math.random() * 0.5);
+            ctx.beginPath();
+            ctx.arc(x + Math.cos(a) * rr, y + Math.sin(a) * rr, r * (0.12 + Math.random() * 0.22), 0, 7);
+            ctx.fill();
+          }
+          break;
         }
-      } else {
-        ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+        case 'watercolor': {
+          // soft wet wash: transparent core, pigment pooling toward the edge
+          const rr = r * 1.8;
+          const g = ctx.createRadialGradient(x, y, rr * 0.1, x, y, rr);
+          g.addColorStop(0, hexA(col, 0.10));
+          g.addColorStop(0.75, hexA(col, 0.16));
+          g.addColorStop(0.92, hexA(col, 0.22));
+          g.addColorStop(1, hexA(col, 0));
+          ctx.globalAlpha = this.opacity;
+          ctx.fillStyle = g;
+          const wob = 1 + (Math.random() - 0.5) * 0.16;   // wobbly organic edge
+          ctx.beginPath(); ctx.ellipse(x, y, rr * wob, rr / wob, Math.random() * 3, 0, 7); ctx.fill();
+          break;
+        }
+        case 'oil': {
+          // thick opaque paint: bristle streaks along the stroke direction
+          ctx.translate(x, y); ctx.rotate(angle);
+          ctx.globalAlpha = A;
+          ctx.beginPath(); ctx.ellipse(0, 0, r * 1.05, r * 0.85, 0, 0, 7); ctx.fill();
+          ctx.lineCap = 'round';
+          for (let i = 0; i < 6; i++) {
+            const off = (i / 5 - 0.5) * r * 1.5;
+            const tone = i % 2 ? 'rgba(255,255,255,.16)' : 'rgba(0,0,0,.12)';
+            ctx.strokeStyle = tone;
+            ctx.lineWidth = Math.max(1, r * 0.16);
+            ctx.beginPath(); ctx.moveTo(-r, off); ctx.lineTo(r, off * 0.85); ctx.stroke();
+          }
+          break;
+        }
+        case 'airbrush': {
+          // fine gaussian spray fading outward
+          for (let i = 0; i < 34; i++) {
+            const a = Math.random() * 7;
+            const rr = (Math.random() + Math.random()) / 2 * r * 1.7;  // center-weighted
+            ctx.globalAlpha = A * 0.16 * (1 - rr / (r * 1.8));
+            ctx.beginPath();
+            ctx.arc(x + Math.cos(a) * rr, y + Math.sin(a) * rr, 0.7 + Math.random() * 0.9, 0, 7);
+            ctx.fill();
+          }
+          break;
+        }
+        case 'glitter': {
+          ctx.globalAlpha = A * 0.45;
+          ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+          for (let i = 0; i < 7; i++) {
+            const gx = x + (Math.random() - .5) * r * 1.8, gy = y + (Math.random() - .5) * r * 1.8;
+            const gs = 1 + Math.random() * 2.2, rot = Math.random() * 3;
+            ctx.globalAlpha = 0.75 + Math.random() * 0.25;
+            ctx.fillStyle = ['#ffffff', '#ffe9a8', col][i % 3];
+            ctx.save(); ctx.translate(gx, gy); ctx.rotate(rot);
+            ctx.beginPath();                                  // 4-point star glint
+            ctx.moveTo(0, -gs * 2); ctx.lineTo(gs * .5, -gs * .5); ctx.lineTo(gs * 2, 0);
+            ctx.lineTo(gs * .5, gs * .5); ctx.lineTo(0, gs * 2); ctx.lineTo(-gs * .5, gs * .5);
+            ctx.lineTo(-gs * 2, 0); ctx.lineTo(-gs * .5, -gs * .5); ctx.closePath(); ctx.fill();
+            ctx.restore();
+          }
+          break;
+        }
+        case 'metallic': {
+          const g = ctx.createRadialGradient(x - r / 3, y - r / 3, 1, x, y, r);
+          g.addColorStop(0, '#ffffff'); g.addColorStop(.35, col); g.addColorStop(1, 'rgba(0,0,0,.30)');
+          ctx.globalAlpha = A;
+          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+          ctx.strokeStyle = 'rgba(255,255,255,.5)';           // specular glint
+          ctx.lineWidth = Math.max(1, r * 0.12); ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(x - r * .5, y - r * .55); ctx.quadraticCurveTo(x, y - r * .9, x + r * .5, y - r * .55);
+          ctx.stroke();
+          break;
+        }
+        case 'texture': {
+          // canvas cross-hatch inside the dab
+          ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.clip();
+          ctx.globalAlpha = A * 0.55;
+          ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+          ctx.globalAlpha = A * 0.35;
+          ctx.lineWidth = 1;
+          const step = Math.max(2.5, r * 0.38);
+          for (let o = -r; o <= r; o += step) {
+            ctx.beginPath(); ctx.moveTo(x - r, y + o); ctx.lineTo(x + r, y + o - r * .4); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x + o, y - r); ctx.lineTo(x + o - r * .4, y + r); ctx.stroke();
+          }
+          break;
+        }
+        default: {
+          ctx.globalAlpha = A;
+          ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+        }
       }
       ctx.restore();
     }
@@ -487,6 +598,7 @@
 
   /* ---------- helpers ---------- */
   function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+  function hexA(h, a) { try { const [r,g,b] = hexRgb(h); return `rgba(${r},${g},${b},${a})`; } catch(e){ return h; } }
   function rgbHex(r,g,b){ return '#' + [r,g,b].map(v => v.toString(16).padStart(2,'0')).join(''); }
   function wait(ms){ return new Promise(r => setTimeout(r, ms)); }
   function pickMime(){ return ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm'; }
