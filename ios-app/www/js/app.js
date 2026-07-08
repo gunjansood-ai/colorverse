@@ -4,8 +4,40 @@
   // On the web the API is same-origin; in the native iOS/iPad app the bundle is
   // loaded locally (capacitor://) so API calls must hit the deployed backend.
   const API_BASE = (location.protocol === 'http:' || location.protocol === 'https:') ? '' : 'https://colorverse-delta.vercel.app';
+
+  /* ---- local profiles: multiple artists on one device, no sign-in ----
+     Each profile has its own gallery. The optional email is for the parent
+     and never leaves the device (stored in localStorage only). */
+  const PROFILE_EMOJI = ['🎨','🦁','🦄','🐬','🚀','🦖','🌸','🐼','🐙','🌈','⚽','🎈'];
+  function loadProfiles() {
+    try {
+      const p = JSON.parse(localStorage.getItem('cv_profiles') || 'null');
+      if (Array.isArray(p) && p.length) return p;
+    } catch (e) {}
+    return [{ id: 'p' + Date.now().toString(36), name: 'Little Artist', emoji: '🎨', email: '' }];
+  }
+  const _profiles = loadProfiles();
+  let PID = localStorage.getItem('cv_active_profile');
+  if (!_profiles.find(p => p.id === PID)) PID = _profiles[0].id;
+  // migrate the old single shared gallery into the first profile
+  try {
+    const legacy = localStorage.getItem('cv_gallery');
+    if (legacy && !localStorage.getItem('cv_gallery_' + _profiles[0].id)) {
+      localStorage.setItem('cv_gallery_' + _profiles[0].id, legacy);
+      localStorage.removeItem('cv_gallery');
+    }
+  } catch (e) {}
+  function galleryKey() { return 'cv_gallery_' + PID; }
+  function persistProfiles() {
+    try {
+      localStorage.setItem('cv_profiles', JSON.stringify(store.profiles));
+      localStorage.setItem('cv_active_profile', PID);
+    } catch (e) {}
+  }
+
   const store = {
-    user: { name: 'Gunjan', initial: 'G', tier: 'Free' },
+    user: { tier: 'Free' },
+    profiles: _profiles,
     gallery: loadGallery(),
     gen: { prompt: '', style: 'cartoon', complexity: 'beginner' },
     levelSel: 'all',        // Color tab skill filter
@@ -30,15 +62,17 @@
     return (typeof CATALOG !== 'undefined' && CATALOG.find(x => x.id === id))
       ? `<img src="${catImg(id)}" loading="lazy" alt=""/>` : svgThumb(id);
   }
+  function esc(s) { return String(s || '').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])); }
   function toast(msg) {
     const host = document.getElementById('toast-host');
     const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
     host.appendChild(t); setTimeout(() => t.remove(), 2200);
   }
   function loadGallery() {
-    try { return JSON.parse(localStorage.getItem('cv_gallery') || '[]'); } catch (e) { return []; }
+    try { return JSON.parse(localStorage.getItem(galleryKey()) || '[]'); } catch (e) { return []; }
   }
-  function saveGallery() { try { localStorage.setItem('cv_gallery', JSON.stringify(store.gallery)); } catch (e) {} }
+  function saveGallery() { try { localStorage.setItem(galleryKey(), JSON.stringify(store.gallery)); } catch (e) {} }
+  function ap() { return store.profiles.find(p => p.id === PID) || store.profiles[0]; }
   function go(route) { location.hash = route; }
 
   /* ---- AI usage cap (cost control): 5 generations per day, per device ---- */
@@ -62,7 +96,7 @@
       <div class="title">${title}</div>
       <button class="icon-btn crown" title="Go Premium" onclick="CV.premium()">${ICONS.crown}</button>
       <button class="icon-btn" title="Kids Mode" onclick="location.hash='#/kids'">🧒</button>
-      <div class="avatar">${store.user.initial}</div>
+      <div class="avatar" title="${ap().name} — tap to switch" style="cursor:pointer;font-size:19px" onclick="location.hash='#/profile'">${ap().emoji}</div>
     </header>`;
   }
 
@@ -169,13 +203,35 @@
 
   /* ---------------- PROFILE ---------------- */
   function Profile() {
+    const p = ap();
     return `<div class="screen">
       ${appbar('Profile')}
       <div class="container" style="max-width:560px">
         <div style="display:flex;align-items:center;gap:14px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px">
-          <div class="avatar" style="width:56px;height:56px;font-size:22px">${store.user.initial}</div>
-          <div><h3>${store.user.name}</h3><span class="badge">${store.user.tier} plan</span></div>
+          <div class="avatar" style="width:56px;height:56px;font-size:28px">${p.emoji}</div>
+          <div><h3>${esc(p.name)}</h3>
+            ${p.email ? `<p style="margin:2px 0 4px;font-size:13px">${esc(p.email)}</p>` : ''}
+            <span class="badge">${store.user.tier} plan</span></div>
         </div>
+        <div class="section-head"><h3>Profiles on this device</h3></div>
+        <div style="background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden">
+          ${store.profiles.map(pr => `
+            <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)">
+              <div class="avatar" style="font-size:19px">${pr.emoji}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:700">${esc(pr.name)}</div>
+                ${pr.email ? `<div style="font-size:12px;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis">${esc(pr.email)}</div>` : ''}
+              </div>
+              ${pr.id === PID
+                ? '<span class="badge">Active</span>'
+                : `<button class="btn btn-ghost btn-sm" onclick="CV.switchProfile('${pr.id}')">Switch</button>
+                   <button class="icon-btn" title="Remove profile" style="color:var(--ink-3)" onclick="CV.removeProfile('${pr.id}')">✕</button>`}
+            </div>`).join('')}
+          <div style="padding:12px 16px">
+            <button class="btn btn-ghost btn-block btn-sm" onclick="CV.newProfile()">＋ Add a profile</button>
+          </div>
+        </div>
+        <p style="font-size:12px;color:var(--ink-3);margin:8px 2px 0">Each profile keeps its own gallery. Everything stays on this device.</p>
         <div class="section-head"><h3>Subscription</h3></div>
         ${planCard('Free','$0','Basic pages, basic brushes, limited AI', store.user.tier==='Free')}
         ${planCard('Premium','$9.99/mo','Unlimited AI, advanced brushes, layers, HD & time-lapse', store.user.tier==='Premium')}
@@ -853,6 +909,59 @@
       });
     },
     premium() { go('#/profile'); setTimeout(() => toast('Unlock Premium for unlimited AI'), 200); },
+    /* ---- profiles ---- */
+    switchProfile(id) {
+      if (!store.profiles.find(p => p.id === id)) return;
+      PID = id; persistProfiles();
+      store.gallery = loadGallery();
+      render();
+      toast('Hi ' + ap().name + '! 👋');
+    },
+    newProfile() {
+      CV._npEmoji = PROFILE_EMOJI[store.profiles.length % PROFILE_EMOJI.length];
+      const m = document.createElement('div');
+      m.className = 'modal-bg'; m.id = 'npModal';
+      m.onclick = e => { if (e.target === m) m.remove(); };
+      m.innerHTML = `<div class="modal">
+        <span class="x" onclick="this.closest('.modal-bg').remove()">×</span>
+        <h3>New profile</h3>
+        <p style="font-size:13px">A profile for each artist — everyone gets their own gallery.</p>
+        <div style="font-weight:700;font-size:13px;margin-top:10px">Name</div>
+        <input id="npName" class="prompt-box" style="min-height:auto;margin-top:6px" placeholder="e.g. Maya" maxlength="20"/>
+        <div style="font-weight:700;font-size:13px;margin-top:12px">Parent email <span style="font-weight:400;color:var(--ink-3)">(optional — stays on this device)</span></div>
+        <input id="npEmail" type="email" class="prompt-box" style="min-height:auto;margin-top:6px" placeholder="parent@example.com"/>
+        <div style="font-weight:700;font-size:13px;margin-top:12px">Pick an avatar</div>
+        <div class="opt-row" id="npEmojiRow">
+          ${PROFILE_EMOJI.map(e => `<div class="opt ${e === CV._npEmoji ? 'active' : ''}" style="font-size:18px;padding:7px 10px" onclick="CV.pickEmoji('${e}', this)">${e}</div>`).join('')}
+        </div>
+        <button class="btn btn-primary btn-block" style="margin-top:14px" onclick="CV.createProfile()">Create profile</button>
+      </div>`;
+      document.body.appendChild(m);
+      setTimeout(() => document.getElementById('npName')?.focus(), 50);
+    },
+    pickEmoji(e, el) {
+      CV._npEmoji = e;
+      document.querySelectorAll('#npEmojiRow .opt').forEach(o => o.classList.toggle('active', o === el));
+    },
+    createProfile() {
+      const name = (document.getElementById('npName')?.value || '').trim();
+      const email = (document.getElementById('npEmail')?.value || '').trim();
+      if (!name) { toast('Give the profile a name'); return; }
+      const p = { id: 'p' + Date.now().toString(36), name, emoji: CV._npEmoji || '🎨', email };
+      store.profiles.push(p);
+      document.getElementById('npModal')?.remove();
+      CV.switchProfile(p.id);
+    },
+    removeProfile(id) {
+      const p = store.profiles.find(x => x.id === id);
+      if (!p || store.profiles.length < 2 || id === PID) return;
+      if (!confirm(`Remove ${p.name}'s profile and their saved artwork?`)) return;
+      store.profiles = store.profiles.filter(x => x.id !== id);
+      try { localStorage.removeItem('cv_gallery_' + id); } catch (e) {}
+      persistProfiles();
+      render();
+      toast('Profile removed');
+    },
     upgrade(plan) { store.user.tier = plan; render(); toast('Upgraded to ' + plan + ' 🎉'); },
     kidsCat(id) {
       const c = KIDS_CATS.find(x => x.id === id);
