@@ -96,7 +96,7 @@
       <div class="title">${title}</div>
       <button class="icon-btn crown" title="Go Premium" onclick="CV.premium()">${ICONS.crown}</button>
       <button class="icon-btn" title="Kids Mode" onclick="location.hash='#/kids'">🧒</button>
-      <div class="avatar" title="${ap().name} — tap to switch" style="cursor:pointer;font-size:19px" onclick="location.hash='#/profile'">${ap().emoji}</div>
+      <div class="avatar" title="${esc(ap().name)} — tap to switch" style="cursor:pointer;font-size:19px" onclick="location.hash='#/profile'">${ap().emoji}</div>
     </header>`;
   }
 
@@ -142,7 +142,7 @@
           <h3>Create a coloring page ✨</h3>
           <p style="margin:4px 0 0">Describe anything — I'll turn it into a page you can color.</p>
           <div class="learn-gen-row">
-            <input id="genPrompt" class="learn-input" value="${store.gen.prompt || ''}" placeholder="e.g. a dragon birthday party" oninput="CV.savePrompt(this.value)" onkeydown="if(event.key==='Enter')CV.generate()"/>
+            <input id="genPrompt" class="learn-input" maxlength="300" value="${esc(store.gen.prompt || '')}" placeholder="e.g. a dragon birthday party" oninput="CV.savePrompt(this.value)" onkeydown="if(event.key==='Enter')CV.generate()"/>
             <button class="btn btn-accent btn-sm" onclick="CV.generate()">Create ✨</button>
           </div>
           ${difRow('gen', store.gen.complexity, `<div class="dif ghost" onclick="CV.import()">📷 Import photo</div>`)}
@@ -291,7 +291,7 @@
           <h3>Learn to draw anything ✏️</h3>
           <p style="margin:4px 0 0">Type what you want to draw — I'll generate it and show you how, step by step.</p>
           <div class="learn-gen-row">
-            <input id="learnPrompt" class="learn-input" value="${store.learnPrompt || ''}" placeholder="e.g. a friendly robot, a tulip, a puppy…" oninput="CV.saveLearnPrompt(this.value)" onkeydown="if(event.key==='Enter')CV.generateLesson()"/>
+            <input id="learnPrompt" class="learn-input" maxlength="300" value="${esc(store.learnPrompt || '')}" placeholder="e.g. a friendly robot, a tulip, a puppy…" oninput="CV.saveLearnPrompt(this.value)" onkeydown="if(event.key==='Enter')CV.generateLesson()"/>
             <button class="btn btn-accent btn-sm" onclick="CV.generateLesson()">Generate ✨</button>
           </div>
           ${difRow('learn', store.learnComplexity)}
@@ -469,8 +469,8 @@
     const o = document.createElement('div'); o.className = 'modal-bg'; o.id = 'lessonOverlay';
     o.innerHTML = `<div class="modal" style="text-align:center">
       <div class="spin" style="margin:8px auto 16px"></div>
-      <h3>${msg || 'Creating your drawing lesson…'}</h3>
-      <p style="font-size:13px">"${prompt}"</p>
+      <h3>${esc(msg) || 'Creating your drawing lesson…'}</h3>
+      <p style="font-size:13px">"${esc(prompt)}"</p>
       <p style="font-size:12px;color:var(--ink-3)">Generating the picture, then breaking it into steps</p></div>`;
     return o;
   }
@@ -714,7 +714,7 @@
     o.innerHTML = `<div class="modal" style="text-align:center">
       <div class="spin" style="margin:8px auto 16px"></div>
       <h3>Generating your coloring page…</h3>
-      <p style="font-size:13px">"${prompt}"</p>
+      <p style="font-size:13px">"${esc(prompt)}"</p>
       <p style="font-size:12px;color:var(--ink-3)">Style: ${store.gen.style} · ${store.gen.complexity}</p>
     </div>`;
     return o;
